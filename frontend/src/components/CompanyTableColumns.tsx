@@ -4,13 +4,12 @@ import {
   GridAlignment,
 } from "@mui/x-data-grid";
 import FavoriteIcon from "@mui/icons-material/Favorite";
-import RemoveIcon from "@mui/icons-material/Remove";
 import { RowStatuses, Collection } from "../types";
 import Box from "@mui/material/Box";
-// import Typography from "@mui/material/Typography";
 import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
 import CircularProgress from "@mui/material/CircularProgress";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 
 export function getCompanyTableColumns(
   rowStatuses: RowStatuses,
@@ -27,7 +26,7 @@ export function getCompanyTableColumns(
               params.value ? (
                 <FavoriteIcon sx={{ color: "#ff6600" }} fontSize="small" />
               ) : (
-                <RemoveIcon sx={{ color: "#bbb" }} fontSize="small" />
+                <FavoriteBorderIcon sx={{ color: "#bbb" }} fontSize="small" />
               ),
             sortable: true,
             filterable: false,

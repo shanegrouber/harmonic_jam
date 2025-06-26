@@ -4,15 +4,14 @@ import Snackbar from "@mui/material/Snackbar";
 import { DataGrid } from "@mui/x-data-grid";
 import { getCollectionsById } from "../utils/jam-api";
 import { getCompanyTableColumns } from "./CompanyTableColumns";
-import { RowStatus, RowStatuses, Collection, Company } from "../types";
+import {
+  RowStatus,
+  RowStatuses,
+  Collection,
+  Company,
+  CompanyTableComponentProps,
+} from "../types";
 import CompanyTableToolbar from "./CompanyTableToolbar";
-
-interface CompanyTableProps {
-  selectedCollectionId: string;
-  collections: Collection[];
-  currentCollectionId: string;
-  currentCollection?: Collection;
-}
 
 const createRowStatuses = (): RowStatuses => ({});
 
@@ -30,7 +29,7 @@ const CompanyTable = ({
   collections,
   currentCollectionId,
   currentCollection,
-}: CompanyTableProps) => {
+}: CompanyTableComponentProps) => {
   const [response, setResponse] = useState<Company[]>([]);
   const [total, setTotal] = useState<number>();
   const [offset, setOffset] = useState<number>(0);
@@ -114,6 +113,18 @@ const CompanyTable = ({
     }
   };
 
+  const onDeselectAll = () => {
+    setSelectedCompanyIds([]);
+  };
+
+  const onSelectAll = () => {
+    if (total) {
+      // Generate IDs for all records (assuming IDs are sequential from 1 to total)
+      const allIds = Array.from({ length: total }, (_, index) => index + 1);
+      setSelectedCompanyIds(allIds);
+    }
+  };
+
   const columns = getCompanyTableColumns(rowStatuses, currentCollection);
 
   return (
@@ -130,7 +141,8 @@ const CompanyTable = ({
         collections={collections}
         currentCollectionId={currentCollectionId}
         initiateTransfer={initiateTransfer}
-        setSelectedCompanyIds={setSelectedCompanyIds}
+        onDeselectAll={onDeselectAll}
+        onSelectAll={onSelectAll}
       />
       <div
         className="table-container flex flex-col h-full w-full"
@@ -150,9 +162,29 @@ const CompanyTable = ({
             pagination
             checkboxSelection
             onRowSelectionModelChange={(newSelection) => {
-              setSelectedCompanyIds(newSelection as number[]);
+              // Convert the new selection to numbers and merge with existing selections
+              const newSelectionNumbers = newSelection as number[];
+              const currentSelection = new Set(selectedCompanyIds);
+
+              // Add newly selected rows
+              newSelectionNumbers.forEach((id) => currentSelection.add(id));
+
+              // Remove deselected rows (rows that were in current selection but not in new selection)
+              const currentRowIds = new Set(response.map((row) => row.id));
+              selectedCompanyIds.forEach((id) => {
+                if (
+                  currentRowIds.has(id) &&
+                  !newSelectionNumbers.includes(id)
+                ) {
+                  currentSelection.delete(id);
+                }
+              });
+
+              setSelectedCompanyIds(Array.from(currentSelection));
             }}
-            rowSelectionModel={selectedCompanyIds}
+            rowSelectionModel={selectedCompanyIds.filter((id) =>
+              response.some((row) => row.id === id)
+            )}
             paginationMode="server"
             onPaginationModelChange={(newMeta) => {
               setPageSize(newMeta.pageSize);

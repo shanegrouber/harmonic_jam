@@ -2,13 +2,7 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import BlockIcon from "@mui/icons-material/Block";
 import BusinessIcon from "@mui/icons-material/Business";
-import { Collection } from "../types";
-
-interface SidebarProps {
-  collections: Collection[];
-  selectedCollectionId?: string;
-  setSelectedCollectionId: (id: string) => void;
-}
+import { SidebarComponentProps } from "../types";
 
 const collectionIcon = (name: string) => {
   if (name.toLowerCase().includes("liked"))
@@ -24,7 +18,7 @@ const Sidebar = ({
   collections,
   selectedCollectionId,
   setSelectedCollectionId,
-}: SidebarProps) => (
+}: SidebarComponentProps) => (
   <aside className="bg-white rounded-none shadow flex flex-col border-r border-gray-200">
     <div className="font-bold text-xl border-b p-6 text-left text-black">
       Harmonic Jam

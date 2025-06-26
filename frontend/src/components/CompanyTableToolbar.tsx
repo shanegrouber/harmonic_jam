@@ -6,30 +6,15 @@ import {
   IconButton,
   Menu,
   Divider,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Collection } from "../types";
+import { Collection, CompanyTableToolbarComponentProps } from "../types";
 import ModernButton from "./ui/ModernButton";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-
-interface CompanyTableToolbarProps {
-  offset: number;
-  pageSize: number;
-  total?: number;
-  onPageChange: (newOffset: number) => void;
-  onPageSizeChange: (newSize: number) => void;
-  isTransferring: boolean;
-  selectedCount: number;
-  selectedCompanyIds: number[];
-  collections: Collection[];
-  currentCollectionId: string;
-  initiateTransfer: (
-    companyIds: number[],
-    targetCollection: Collection
-  ) => void;
-  setSelectedCompanyIds: (companyIds: number[]) => void;
-}
 
 function formatResultsCount(count: number | undefined) {
   if (!count) return "";
@@ -47,14 +32,16 @@ const CompanyTableToolbar = ({
   pageSize,
   total,
   onPageChange,
+  onPageSizeChange,
   isTransferring,
   selectedCount,
   selectedCompanyIds,
   collections,
   currentCollectionId,
   initiateTransfer,
-  setSelectedCompanyIds,
-}: CompanyTableToolbarProps) => {
+  onSelectAll,
+  onDeselectAll,
+}: CompanyTableToolbarComponentProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
 
@@ -79,10 +66,6 @@ const CompanyTableToolbar = ({
   const otherCollections = collections.filter(
     (col: Collection) => col.id !== currentCollectionId
   );
-
-  const onDeselectAll = () => {
-    setSelectedCompanyIds([]);
-  };
 
   return (
     <Box
@@ -112,6 +95,20 @@ const CompanyTableToolbar = ({
         >
           <ChevronRightIcon />
         </IconButton>
+
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Page Size</InputLabel>
+          <Select
+            value={pageSize}
+            label="Page Size"
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          >
+            <MenuItem value={10}>10 rows</MenuItem>
+            <MenuItem value={25}>25 rows</MenuItem>
+            <MenuItem value={50}>50 rows</MenuItem>
+            <MenuItem value={100}>100 rows</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
       {/* Right side - Selection controls and other elements */}
@@ -131,6 +128,21 @@ const CompanyTableToolbar = ({
               onClick={onDeselectAll}
             >
               Deselect all
+            </Typography>
+          </>
+        )}
+
+        {total && total > 0 && (
+          <>
+            <Divider orientation="vertical" flexItem />
+
+            <Typography
+              variant="body2"
+              color="primary"
+              sx={{ cursor: "pointer", fontWeight: 500 }}
+              onClick={onSelectAll}
+            >
+              Select all ({total})
             </Typography>
           </>
         )}
