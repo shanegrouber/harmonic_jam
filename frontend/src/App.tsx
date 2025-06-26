@@ -6,10 +6,25 @@ import { useEffect, useState } from "react";
 import CompanyTable from "./components/CompanyTable";
 import { getCollectionsMetadata } from "./utils/jam-api";
 import useApi from "./utils/useApi";
+import Sidebar from "./components/Sidebar";
 
-const darkTheme = createTheme({
+const customTheme = createTheme({
   palette: {
-    mode: "dark",
+    mode: "light",
+    primary: {
+      main: "#ff6600", // orange
+    },
+    background: {
+      default: "#f7f8fa", // light gray
+      paper: "#fff", // white
+    },
+    text: {
+      primary: "#222",
+      secondary: "#555",
+    },
+  },
+  typography: {
+    fontFamily: "Inter, system-ui, Avenir, Helvetica, Arial, sans-serif",
   },
 });
 
@@ -28,41 +43,29 @@ function App() {
   }, [selectedCollectionId]);
 
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={customTheme}>
       <CssBaseline />
-      <div className="mx-8">
-        <div className="font-bold text-xl border-b p-2 mb-4 text-left">
-          Harmonic Jam
-        </div>
-        <div className="flex">
-          <div className="w-1/5">
-            <p className=" font-bold border-b mb-2 pb-2 text-left">
-              Collections
-            </p>
-            <div className="flex flex-col gap-2 text-left">
-              {collectionResponse?.map((collection) => {
-                return (
-                  <div
-                    className={`py-1 pl-4 hover:cursor-pointer hover:bg-orange-300 ${
-                      selectedCollectionId === collection.id &&
-                      "bg-orange-500 font-bold"
-                    }`}
-                    onClick={() => {
-                      setSelectedCollectionId(collection.id);
-                    }}
-                  >
-                    {collection.collection_name}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="w-4/5 ml-4">
+      <div className="fixed inset-0 flex h-screen w-screen bg-[#f7f8fa] overflow-hidden">
+        <Sidebar
+          collections={collectionResponse || []}
+          selectedCollectionId={selectedCollectionId}
+          setSelectedCollectionId={setSelectedCollectionId}
+        />
+        {/* Main Content fills rest, only table scrolls */}
+        <main className="flex-1 flex flex-col h-full">
+          <div className="flex-1 h-full w-full overflow-y-auto p-8">
             {selectedCollectionId && (
-              <CompanyTable selectedCollectionId={selectedCollectionId} />
+              <CompanyTable
+                selectedCollectionId={selectedCollectionId}
+                collections={collectionResponse || []}
+                currentCollectionId={selectedCollectionId}
+                currentCollection={collectionResponse?.find(
+                  (col) => col.id === selectedCollectionId
+                )}
+              />
             )}
           </div>
-        </div>
+        </main>
       </div>
     </ThemeProvider>
   );
