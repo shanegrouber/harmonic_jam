@@ -53,7 +53,7 @@ function App() {
         />
         {/* Main Content fills rest, only table scrolls */}
         <main className="flex-1 flex flex-col h-full">
-          <div className="flex-1 h-full w-full overflow-y-auto p-8">
+          <div className="flex-1 h-full w-full p-8">
             {selectedCollectionId && (
               <CompanyTable
                 selectedCollectionId={selectedCollectionId}

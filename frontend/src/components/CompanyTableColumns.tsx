@@ -6,13 +6,15 @@ import {
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { RowStatuses, Collection } from "../types";
+import Box from "@mui/material/Box";
+// import Typography from "@mui/material/Typography";
+import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
+import ErrorOutline from "@mui/icons-material/ErrorOutline";
 import CircularProgress from "@mui/material/CircularProgress";
-import CheckIcon from "@mui/icons-material/Check";
-import ErrorIcon from "@mui/icons-material/Error";
 
 export function getCompanyTableColumns(
   rowStatuses: RowStatuses,
-  currentCollection?: Collection,
+  currentCollection?: Collection
 ): GridColDef[] {
   const columns: GridColDef[] = [
     ...(currentCollection?.collection_name === "My List"
@@ -56,10 +58,29 @@ export function getCompanyTableColumns(
     cellClassName: "status-cell",
     renderCell: (params: GridRenderCellParams) => {
       const status = rowStatuses[params.id as number];
-      if (status === "pending") return <CircularProgress size={16} />;
-      if (status === "success") return <CheckIcon color="success" />;
-      if (status === "error") return <ErrorIcon color="error" />;
-      return null;
+      if (!["pending", "success", "error"].includes(status)) {
+        return "";
+      }
+      return (
+        <Box
+          display="flex-end"
+          alignItems="center"
+          justifyContent="center"
+          width="100%"
+          height="100%"
+          gap={1}
+        >
+          {status === "success" && (
+            <CheckCircleRounded sx={{ color: "#8ed1b9" }} />
+          )}
+          {status === "error" && (
+            <ErrorOutline fontSize="small" sx={{ color: "#f28b82" }} />
+          )}
+          {status === "pending" && (
+            <CircularProgress size={16} sx={{ color: "#888" }} />
+          )}
+        </Box>
+      );
     },
     sortable: false,
     filterable: false,
