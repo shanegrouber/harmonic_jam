@@ -17,6 +17,7 @@ import {
   CompanyTableComponentProps,
 } from "../types";
 import CompanyTableToolbar from "./CompanyTableToolbar";
+import CompanyTableFooter from "./CompanyTableFooter";
 
 const createRowStatuses = (): RowStatuses => ({});
 
@@ -65,11 +66,13 @@ const CompanyTable = ({
   collections,
   currentCollectionId,
   currentCollection,
+  currentPage,
+  currentPageSize,
+  onPageChange,
+  onPageSizeChange,
 }: CompanyTableComponentProps) => {
   const [response, setResponse] = useState<Company[]>([]);
   const [total, setTotal] = useState<number>();
-  const [offset, setOffset] = useState<number>(0);
-  const [pageSize, setPageSize] = useState(25);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>([]);
   const [rowStatuses, setRowStatuses] = useState<RowStatuses>(
     createRowStatuses()
@@ -85,20 +88,24 @@ const CompanyTable = ({
     severity: "info",
   });
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [loadTime, setLoadTime] = useState<number | null>(null);
+
+  // Calculate offset from current page and page size
+  const offset = currentPage * currentPageSize;
 
   useEffect(() => {
-    getCollectionsById(selectedCollectionId, offset, pageSize).then(
+    const startTime = performance.now();
+
+    getCollectionsById(selectedCollectionId, offset, currentPageSize).then(
       (newResponse) => {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        setLoadTime(duration);
         setResponse(newResponse.companies);
         setTotal(newResponse.total);
       }
     );
-  }, [selectedCollectionId, offset, pageSize]);
-
-  useEffect(() => {
-    setOffset(0);
-    setRowStatuses(createRowStatuses());
-  }, [selectedCollectionId]);
+  }, [selectedCollectionId, offset, currentPageSize]);
 
   useEffect(() => {
     loadTransferStatuses(response, setRowStatuses);
@@ -205,11 +212,6 @@ const CompanyTable = ({
   return (
     <>
       <CompanyTableToolbar
-        offset={offset}
-        pageSize={pageSize}
-        onPageChange={setOffset}
-        onPageSizeChange={setPageSize}
-        total={total}
         isTransferring={isTransferring}
         selectedCount={selectedCompanyIds.length}
         selectedCompanyIds={selectedCompanyIds}
@@ -218,21 +220,19 @@ const CompanyTable = ({
         initiateTransfer={initiateTransfer}
         onDeselectAll={onDeselectAll}
         onSelectAll={onSelectAll}
+        total={total}
+        loadTime={loadTime}
       />
       <div
-        className="table-container flex flex-col h-full w-full"
+        className="table-container flex flex-col h-full w-full min-w-0 overflow-hidden"
         style={{ minHeight: 0 }}
       >
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
           <DataGrid
             rows={response}
             rowHeight={44}
             columns={columns}
-            initialState={{
-              pagination: {
-                paginationModel: { page: 0, pageSize: 25 },
-              },
-            }}
+            paginationModel={{ page: currentPage, pageSize: currentPageSize }}
             rowCount={total}
             pagination
             checkboxSelection
@@ -262,8 +262,8 @@ const CompanyTable = ({
             )}
             paginationMode="server"
             onPaginationModelChange={(newMeta) => {
-              setPageSize(newMeta.pageSize);
-              setOffset(newMeta.page * newMeta.pageSize);
+              onPageSizeChange(newMeta.pageSize);
+              onPageChange(newMeta.page);
             }}
             getRowClassName={(params) => {
               const status = rowStatuses[params.id as number];
@@ -329,6 +329,14 @@ const CompanyTable = ({
             hideFooterSelectedRowCount={true}
           />
         </div>
+
+        <CompanyTableFooter
+          offset={offset}
+          pageSize={currentPageSize}
+          total={total}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+        />
 
         <Snackbar
           open={snackbar.open}

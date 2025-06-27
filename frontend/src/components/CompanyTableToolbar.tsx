@@ -1,17 +1,5 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Typography,
-  MenuItem,
-  IconButton,
-  Menu,
-  Divider,
-  Select,
-  FormControl,
-  InputLabel,
-} from "@mui/material";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { Box, Typography, MenuItem, Menu, Divider } from "@mui/material";
 import { Collection, CompanyTableToolbarComponentProps } from "../types";
 import ModernButton from "./ui/ModernButton";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -27,12 +15,14 @@ function formatResultsCount(count: number | undefined) {
   return `${count} results`;
 }
 
+function formatLoadTime(loadTime: number): string {
+  if (loadTime < 1000) {
+    return `${loadTime.toFixed(0)}ms`;
+  }
+  return `${(loadTime / 1000).toFixed(1)}s`;
+}
+
 const CompanyTableToolbar = ({
-  offset,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
   isTransferring,
   selectedCount,
   selectedCompanyIds,
@@ -41,12 +31,11 @@ const CompanyTableToolbar = ({
   initiateTransfer,
   onSelectAll,
   onDeselectAll,
+  total,
+  loadTime,
 }: CompanyTableToolbarComponentProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
-
-  const currentPage = Math.floor(offset / pageSize);
-  const maxPage = total ? Math.floor((total - 1) / pageSize) : 0;
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (selectedCompanyIds.length > 0) {
@@ -79,36 +68,13 @@ const CompanyTableToolbar = ({
         minHeight: 56,
         position: "relative",
         zIndex: 1,
+        minWidth: 0,
+        overflow: "hidden",
       }}
     >
-      {/* Left side - Pagination controls */}
+      {/* Left side - Future features like search can go here */}
       <Box display="flex" alignItems="center" gap={2}>
-        <IconButton
-          disabled={currentPage === 0}
-          onClick={() => onPageChange(offset - pageSize)}
-        >
-          <ChevronLeftIcon />
-        </IconButton>
-        <IconButton
-          disabled={currentPage >= maxPage}
-          onClick={() => onPageChange(offset + pageSize)}
-        >
-          <ChevronRightIcon />
-        </IconButton>
-
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Page Size</InputLabel>
-          <Select
-            value={pageSize}
-            label="Page Size"
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            <MenuItem value={10}>10 rows</MenuItem>
-            <MenuItem value={25}>25 rows</MenuItem>
-            <MenuItem value={50}>50 rows</MenuItem>
-            <MenuItem value={100}>100 rows</MenuItem>
-          </Select>
-        </FormControl>
+        {/* Placeholder for future features */}
       </Box>
 
       {/* Right side - Selection controls and other elements */}
@@ -132,20 +98,14 @@ const CompanyTableToolbar = ({
           </>
         )}
 
-        {total && total > 0 && (
-          <>
-            <Divider orientation="vertical" flexItem />
-
-            <Typography
-              variant="body2"
-              color="primary"
-              sx={{ cursor: "pointer", fontWeight: 500 }}
-              onClick={onSelectAll}
-            >
-              Select all ({total})
-            </Typography>
-          </>
-        )}
+        <Typography
+          variant="body2"
+          color="primary"
+          sx={{ cursor: "pointer", fontWeight: 500 }}
+          onClick={onSelectAll}
+        >
+          Select all
+        </Typography>
 
         <ModernButton
           onClick={handleMenuOpen}
@@ -169,6 +129,13 @@ const CompanyTableToolbar = ({
           sx={{ fontWeight: "bold" }}
         >
           {formatResultsCount(total)}
+          {loadTime && (
+            <span
+              style={{ fontSize: "0.75rem", opacity: 0.7, marginLeft: "4px" }}
+            >
+              ({formatLoadTime(loadTime)})
+            </span>
+          )}
         </Typography>
       </Box>
 

@@ -19,7 +19,7 @@ const Sidebar = ({
   selectedCollectionId,
   setSelectedCollectionId,
 }: SidebarComponentProps) => (
-  <aside className="bg-white rounded-none shadow flex flex-col border-r border-gray-200">
+  <aside className="bg-white rounded-none shadow flex flex-col border-r border-gray-200 flex-shrink-0">
     <div className="font-bold text-xl border-b p-6 text-left text-black">
       Harmonic Jam
     </div>
@@ -40,7 +40,7 @@ const Sidebar = ({
             onClick={() => setSelectedCollectionId(collection.id)}
           >
             {collectionIcon(collection.collection_name)}
-            {collection.collection_name}
+            <span className="truncate">{collection.collection_name}</span>
           </div>
         ))}
       </div>

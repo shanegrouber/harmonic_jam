@@ -11,14 +11,13 @@ export interface CompanyTableComponentProps {
   collections: Collection[];
   currentCollectionId: string;
   currentCollection?: Collection;
+  currentPage: number;
+  currentPageSize: number;
+  onPageChange: (newPage: number) => void;
+  onPageSizeChange: (newPageSize: number) => void;
 }
 
 export interface CompanyTableToolbarComponentProps {
-  offset: number;
-  pageSize: number;
-  total?: number;
-  onPageChange: (newOffset: number) => void;
-  onPageSizeChange: (newSize: number) => void;
   isTransferring: boolean;
   selectedCount: number;
   selectedCompanyIds: number[];
@@ -30,4 +29,6 @@ export interface CompanyTableToolbarComponentProps {
   ) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
+  total?: number;
+  loadTime?: number | null;
 }
