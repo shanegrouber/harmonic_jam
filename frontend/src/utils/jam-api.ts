@@ -28,7 +28,9 @@ export async function getCollectionsById(
   search?: string
 ): Promise<Collection> {
   try {
-    const response = await axios.get(`${BASE_URL}/collections/${id}`, {
+    // Handle the special "all-companies" case
+    const endpoint = id === "all-companies" ? "all-companies" : id;
+    const response = await axios.get(`${BASE_URL}/collections/${endpoint}`, {
       params: {
         offset,
         limit,
