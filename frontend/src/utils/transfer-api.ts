@@ -6,6 +6,17 @@ export interface TransferJobCreate {
   collection_id: string;
 }
 
+export interface RemoveCompaniesRequest {
+  company_ids: number[];
+  collection_id: string;
+}
+
+export interface RemoveCompaniesResponse {
+  message: string;
+  removed_count: number;
+  company_ids: number[];
+}
+
 export interface TransferJobItemResponse {
   id: string;
   job_id: string;
@@ -51,6 +62,24 @@ export const createTransferJob = async (
 
   if (!response.ok) {
     throw new Error(`Failed to create transfer job: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+export const removeCompaniesFromCollection = async (
+  removeRequest: RemoveCompaniesRequest
+): Promise<RemoveCompaniesResponse> => {
+  const response = await fetch(`${API_BASE_URL}/transfers/remove`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(removeRequest),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to remove companies: ${response.statusText}`);
   }
 
   return response.json();

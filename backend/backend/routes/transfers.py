@@ -21,6 +21,11 @@ class TransferJobCreate(BaseModel):
     collection_id: uuid.UUID
 
 
+class RemoveCompaniesRequest(BaseModel):
+    company_ids: list[int]
+    collection_id: uuid.UUID
+
+
 class TransferJobItemResponse(BaseModel):
     id: uuid.UUID
     job_id: uuid.UUID
@@ -79,6 +84,67 @@ def create_transfer_job(
         raise
 
     return get_transfer_job_status(job_id, db, celery_task.id)
+
+
+@router.post("/remove")
+def remove_companies_from_collection(
+    remove_request: RemoveCompaniesRequest,
+    db: Session = Depends(database.get_db),
+):
+    """Remove companies from a collection"""
+    try:
+        # Check if the collection exists
+        collection = (
+            db.query(database.CompanyCollection)
+            .filter(database.CompanyCollection.id == remove_request.collection_id)
+            .first()
+        )
+
+        if not collection:
+            raise HTTPException(status_code=404, detail="Collection not found")
+
+        # Find existing associations to remove
+        associations_to_remove = (
+            db.query(database.CompanyCollectionAssociation)
+            .filter(
+                database.CompanyCollectionAssociation.company_id.in_(
+                    remove_request.company_ids
+                ),
+                database.CompanyCollectionAssociation.collection_id
+                == remove_request.collection_id,
+            )
+            .all()
+        )
+
+        if not associations_to_remove:
+            return {
+                "message": "No companies found in the specified collection",
+                "removed_count": 0,
+                "company_ids": [],
+            }
+
+        # Get the company IDs that were actually removed
+        removed_company_ids = [assoc.company_id for assoc in associations_to_remove]
+
+        # Remove the associations
+        for association in associations_to_remove:
+            db.delete(association)
+
+        db.commit()
+
+        return {
+            "message": f"Successfully removed {len(removed_company_ids)} companies from collection",
+            "removed_count": len(removed_company_ids),
+            "company_ids": removed_company_ids,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to remove companies: {str(e)}"
+        )
 
 
 @router.post("/jobs/{job_id}/retry")

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Box, Typography, MenuItem, Menu, Divider } from "@mui/material";
-import { Collection, CompanyTableToolbarComponentProps } from "../types";
+import { Box, Typography, Divider } from "@mui/material";
+import { CompanyTableToolbarComponentProps } from "../types";
 import ModernButton from "./ui/ModernButton";
 import SearchBar from "./ui/SearchBar";
+import ManageCollectionsPopover from "./ManageCollectionsPopover";
+import { removeCompaniesFromCollection } from "../utils/transfer-api";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 function formatResultsCount(count: number | undefined) {
@@ -32,28 +34,53 @@ const CompanyTableToolbar = ({
   initiateTransfer,
   onSelectAll,
   onDeselectAll,
+  onRefresh,
   total,
   loadTime,
   searchQuery,
   onSearchChange,
 }: CompanyTableToolbarComponentProps) => {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [manageCollectionsAnchorEl, setManageCollectionsAnchorEl] =
+    useState<null | HTMLElement>(null);
   const [isSelectingAll, setIsSelectingAll] = useState(false);
-  const menuOpen = Boolean(anchorEl);
+  const manageCollectionsOpen = Boolean(manageCollectionsAnchorEl);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleManageCollectionsOpen = (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
     if (selectedCompanyIds.length > 0) {
-      setAnchorEl(event.currentTarget);
+      setManageCollectionsAnchorEl(event.currentTarget);
     }
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
+  const handleManageCollectionsClose = () => {
+    setManageCollectionsAnchorEl(null);
   };
 
-  const handleMoveToCollection = async (targetCollection: Collection) => {
-    setAnchorEl(null);
-    await initiateTransfer(selectedCompanyIds, targetCollection);
+  const handleManageCollectionsSave = async (
+    updates: { collectionId: string; action: "add" | "remove" }[]
+  ) => {
+    // Process each update
+    for (const update of updates) {
+      if (update.action === "add") {
+        const targetCollection = collections.find(
+          (c) => c.id === update.collectionId
+        );
+        if (targetCollection) {
+          await initiateTransfer(selectedCompanyIds, targetCollection);
+        }
+      } else if (update.action === "remove") {
+        await removeCompaniesFromCollection({
+          company_ids: selectedCompanyIds,
+          collection_id: update.collectionId,
+        });
+
+        // Refresh the UI after remove operation
+        if (onRefresh) {
+          onRefresh();
+        }
+      }
+    }
   };
 
   const handleSelectAll = async () => {
@@ -66,10 +93,6 @@ const CompanyTableToolbar = ({
       setIsSelectingAll(false);
     }
   };
-
-  const otherCollections = collections.filter(
-    (col: Collection) => col.id !== currentCollectionId
-  );
 
   return (
     <Box
@@ -161,19 +184,30 @@ const CompanyTableToolbar = ({
           </ModernButton>
 
           <ModernButton
-            onClick={handleMenuOpen}
             endIcon={<KeyboardArrowDownIcon />}
+            onClick={handleManageCollectionsOpen}
             sx={{
               mb: 0,
-              backgroundColor:
-                selectedCompanyIds.length === 0 ? "#e5e7eb" : undefined,
-              color: selectedCompanyIds.length === 0 ? "#888" : undefined,
+              color: selectedCompanyIds.length === 0 ? "#888" : "#ffffff",
               borderRadius: 2,
-              minWidth: 110,
+              minWidth: 140,
+              "&:hover": {
+                transform: "scale(1)",
+              },
+              "&:focus-visible": {
+                outline: "none",
+              },
+              "&.Mui-focusVisible": {
+                outline: "none",
+              },
+              "&:focus": {
+                outline: "none",
+                boxShadow: "none",
+              },
             }}
             disabled={isTransferring || selectedCompanyIds.length === 0}
           >
-            Add to collection
+            Manage collections
           </ModernButton>
         </Box>
 
@@ -193,20 +227,15 @@ const CompanyTableToolbar = ({
         </Typography>
       </Box>
 
-      <Menu anchorEl={anchorEl} open={menuOpen} onClose={handleMenuClose}>
-        {otherCollections.length === 0 ? (
-          <MenuItem disabled>No other collections</MenuItem>
-        ) : (
-          otherCollections.map((collection) => (
-            <MenuItem
-              key={collection.id}
-              onClick={() => handleMoveToCollection(collection)}
-            >
-              Add to {collection.collection_name}
-            </MenuItem>
-          ))
-        )}
-      </Menu>
+      <ManageCollectionsPopover
+        open={manageCollectionsOpen}
+        anchorEl={manageCollectionsAnchorEl}
+        onClose={handleManageCollectionsClose}
+        collections={collections}
+        selectedCompanyIds={selectedCompanyIds}
+        currentCollectionId={currentCollectionId}
+        onSave={handleManageCollectionsSave}
+      />
     </Box>
   );
 };

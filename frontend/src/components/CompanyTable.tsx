@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Alert from "@mui/material/Alert";
 import Snackbar from "@mui/material/Snackbar";
 import { DataGrid } from "@mui/x-data-grid";
@@ -100,7 +100,7 @@ const CompanyTable = ({
   // Calculate offset from current page and page size
   const offset = currentPage * currentPageSize;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const startTime = performance.now();
     try {
       const newResponse = await getCollectionsById(
@@ -117,7 +117,7 @@ const CompanyTable = ({
     } catch (error) {
       console.error("Error fetching data:", error);
     }
-  };
+  }, [selectedCollectionId, offset, currentPageSize, debouncedSearchQuery]);
 
   useEffect(() => {
     fetchData();
@@ -127,6 +127,7 @@ const CompanyTable = ({
     currentPageSize,
     refreshTrigger,
     debouncedSearchQuery,
+    fetchData,
   ]);
 
   // Reset to first page when search query changes
@@ -249,6 +250,10 @@ const CompanyTable = ({
     setSelectedCompanyIds([]);
   };
 
+  const onRefresh = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   const onSelectAll = async () => {
     if (total) {
       try {
@@ -306,6 +311,7 @@ const CompanyTable = ({
         loadTime={loadTime}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
+        onRefresh={onRefresh}
       />
       <div
         className="table-container flex flex-col h-full w-full min-w-0 overflow-hidden"
