@@ -29,6 +29,7 @@ export interface CompanyTableToolbarComponentProps {
   ) => void;
   onSelectAll: () => Promise<void>;
   onDeselectAll: () => void;
+  onClearSelection: () => void;
   onRefresh?: () => void;
   total?: number;
   loadTime?: number | null;

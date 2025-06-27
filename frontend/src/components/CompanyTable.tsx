@@ -7,6 +7,7 @@ import {
   createTransferJob,
   getTransferJobStatus,
   getCompaniesTransferStatus,
+  removeCompaniesFromCollection,
 } from "../utils/transfer-api";
 import { getCompanyTableColumns } from "./CompanyTableColumns";
 import {
@@ -132,10 +133,23 @@ const CompanyTable = ({
 
   // Reset to first page when search query changes
   useEffect(() => {
-    if (currentPage !== 0) {
+    if (debouncedSearchQuery !== searchQuery && currentPage !== 0) {
       onPageChange(0);
     }
-  }, [debouncedSearchQuery, currentPage, onPageChange]);
+  }, [debouncedSearchQuery, currentPage, onPageChange, searchQuery]);
+
+  // Reset selection when collection changes
+  useEffect(() => {
+    setSelectedCompanyIds([]);
+  }, [selectedCollectionId]);
+
+  // Reset selection when data changes (companies might have been removed)
+  useEffect(() => {
+    // Filter out any selected companies that are no longer in the current response
+    setSelectedCompanyIds((prev) =>
+      prev.filter((id) => response.some((company) => company.id === id))
+    );
+  }, [response]);
 
   useEffect(() => {
     loadTransferStatuses(response, setRowStatuses);
@@ -294,7 +308,33 @@ const CompanyTable = ({
     }
   };
 
-  const columns = getCompanyTableColumns(rowStatuses, handleToggleLike);
+  const handleDeleteCompany = async (companyId: number) => {
+    const company = response.find((c) => c.id === companyId);
+    const companyName = company?.company_name || "this company";
+
+    try {
+      await removeCompaniesFromCollection({
+        company_ids: [companyId],
+        collection_id: selectedCollectionId,
+      });
+
+      setResponse((prev) => prev.filter((company) => company.id !== companyId));
+      setSelectedCompanyIds((prev) => prev.filter((id) => id !== companyId));
+      setTotal((prev) => (prev ? prev - 1 : prev));
+
+      showToast(`"${companyName}" removed from this collection`, "success");
+    } catch (error) {
+      console.error("Failed to delete company:", error);
+      showToast("Failed to remove company from collection", "error");
+    }
+  };
+
+  const columns = getCompanyTableColumns(
+    rowStatuses,
+    handleToggleLike,
+    handleDeleteCompany,
+    currentCollectionId
+  );
 
   return (
     <>
@@ -307,6 +347,7 @@ const CompanyTable = ({
         initiateTransfer={initiateTransfer}
         onDeselectAll={onDeselectAll}
         onSelectAll={onSelectAll}
+        onClearSelection={onDeselectAll}
         total={total}
         loadTime={loadTime}
         searchQuery={searchQuery}
@@ -402,6 +443,9 @@ const CompanyTable = ({
                 cursor: "default",
                 background: "transparent !important",
                 pointerEvents: "none !important",
+                "& .MuiIconButton-root": {
+                  pointerEvents: "auto !important",
+                },
               },
               "& .status-cell:focus, & .status-cell:focus-within, & .status-cell.MuiDataGrid-cell--editing, & .status-cell.MuiDataGrid-cell--withBorder":
                 {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import CompanyTable from "./CompanyTable";
 import { getCollectionsMetadata } from "../utils/jam-api";
 import useApi from "../utils/useApi";
@@ -11,6 +11,9 @@ const Page = () => {
   const [hasInitialized, setHasInitialized] = useState<boolean>(false);
   const [previousCollectionId, setPreviousCollectionId] = useState<string>();
   const { data: collectionResponse } = useApi(() => getCollectionsMetadata());
+
+  // Use ref to track if we're updating URL to prevent infinite loops
+  const isUpdatingUrl = useRef(false);
 
   // Read initial state from URL parameters (only once on mount)
   useEffect(() => {
@@ -68,16 +71,18 @@ const Page = () => {
 
   // Update URL parameters when state changes
   useEffect(() => {
+    if (isUpdatingUrl.current) return;
+
+    isUpdatingUrl.current = true;
+
     const urlParams = new URLSearchParams();
 
     if (selectedCollectionId) {
       urlParams.set("collection", selectedCollectionId);
     }
 
-    // Include page parameter if it's not 0, or if we're explicitly setting it
-    if (currentPage > 0) {
-      urlParams.set("page", currentPage.toString());
-    }
+    // Always include page parameter to maintain state
+    urlParams.set("page", currentPage.toString());
 
     // Always include pageSize parameter if it's not the default (25)
     if (currentPageSize !== 25) {
@@ -88,6 +93,11 @@ const Page = () => {
       ? `?${urlParams.toString()}`
       : window.location.pathname;
     window.history.pushState({}, "", newUrl);
+
+    // Reset the flag after a short delay to allow state updates to settle
+    setTimeout(() => {
+      isUpdatingUrl.current = false;
+    }, 0);
   }, [selectedCollectionId, currentPage, currentPageSize]);
 
   const handlePageChange = (newPage: number) => {

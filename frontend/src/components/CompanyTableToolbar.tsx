@@ -34,6 +34,7 @@ const CompanyTableToolbar = ({
   initiateTransfer,
   onSelectAll,
   onDeselectAll,
+  onClearSelection,
   onRefresh,
   total,
   loadTime,
@@ -60,6 +61,9 @@ const CompanyTableToolbar = ({
   const handleManageCollectionsSave = async (
     updates: { collectionId: string; action: "add" | "remove" }[]
   ) => {
+    // Check if we're in "All Companies" view
+    const isAllCompaniesView = currentCollectionId === "all-companies";
+
     // Process each update
     for (const update of updates) {
       if (update.action === "add") {
@@ -69,11 +73,15 @@ const CompanyTableToolbar = ({
         if (targetCollection) {
           await initiateTransfer(selectedCompanyIds, targetCollection);
         }
-      } else if (update.action === "remove") {
+      } else if (update.action === "remove" && !isAllCompaniesView) {
+        // Only allow remove operations when not in "All Companies" view
         await removeCompaniesFromCollection({
           company_ids: selectedCompanyIds,
           collection_id: update.collectionId,
         });
+
+        // Clear selection after successful remove
+        onClearSelection();
 
         // Refresh the UI after remove operation
         if (onRefresh) {

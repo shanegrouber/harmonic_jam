@@ -37,6 +37,8 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
   >(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
+  const isAllCompaniesView = currentCollectionId === "all-companies";
+
   // Initialize selected collections based on which collections contain all selected companies
   useEffect(() => {
     if (open && selectedCompanyIds.length > 0 && collections) {
@@ -57,8 +59,7 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
         }
       });
 
-      // Always include the current collection since the selected companies are already in it
-      if (currentCollectionId) {
+      if (!isAllCompaniesView && currentCollectionId) {
         preSelectedCollections.add(currentCollectionId);
       }
 
@@ -68,7 +69,13 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
       setSelectedCollections(new Set());
       setInitialSelectedCollections(new Set());
     }
-  }, [open, collections, selectedCompanyIds, currentCollectionId]);
+  }, [
+    open,
+    collections,
+    selectedCompanyIds,
+    currentCollectionId,
+    isAllCompaniesView,
+  ]);
 
   const handleCollectionToggle = (collectionId: string) => {
     const newSelected = new Set(selectedCollections);
@@ -86,22 +93,31 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
       const updates: { collectionId: string; action: "add" | "remove" }[] = [];
 
       if (collections) {
-        // Check for collections that are currently selected but weren't initially selected (ADD)
-        for (const collectionId of selectedCollections) {
-          if (!initialSelectedCollections.has(collectionId)) {
+        if (isAllCompaniesView) {
+          // In "All Companies" view, only allow ADD operations
+          for (const collectionId of selectedCollections) {
             const collection = collections.find((c) => c.id === collectionId);
             if (collection) {
               updates.push({ collectionId: collection.id, action: "add" });
             }
           }
-        }
+        } else {
+          // In regular collection view, allow both ADD and REMOVE operations
+          for (const collectionId of selectedCollections) {
+            if (!initialSelectedCollections.has(collectionId)) {
+              const collection = collections.find((c) => c.id === collectionId);
+              if (collection) {
+                updates.push({ collectionId: collection.id, action: "add" });
+              }
+            }
+          }
 
-        // Check for collections that were initially selected but are no longer selected (REMOVE)
-        for (const collectionId of initialSelectedCollections) {
-          if (!selectedCollections.has(collectionId)) {
-            const collection = collections.find((c) => c.id === collectionId);
-            if (collection) {
-              updates.push({ collectionId: collection.id, action: "remove" });
+          for (const collectionId of initialSelectedCollections) {
+            if (!selectedCollections.has(collectionId)) {
+              const collection = collections.find((c) => c.id === collectionId);
+              if (collection) {
+                updates.push({ collectionId: collection.id, action: "remove" });
+              }
             }
           }
         }
@@ -120,6 +136,11 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
   };
 
   const hasChanges = () => {
+    if (isAllCompaniesView) {
+      // In "All Companies" view, any selected collections are changes
+      return selectedCollections.size > 0;
+    }
+
     // Compare current selection with initial selection
     if (selectedCollections.size !== initialSelectedCollections.size) {
       return true;
@@ -189,8 +210,9 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
             fontSize: "0.875rem",
           }}
         >
-          Click collections to add or remove the {selectedCompanyIds.length}{" "}
-          selected companies
+          {isAllCompaniesView
+            ? `Click collections to add the ${selectedCompanyIds.length} selected companies`
+            : `Click collections to add or remove the ${selectedCompanyIds.length} selected companies`}
         </Typography>
 
         <Box
@@ -205,9 +227,10 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
           {collections
             .filter((collection) => collection)
             .sort((a, b) => {
-              // Always put current collection first
-              if (a.id === currentCollectionId) return -1;
-              if (b.id === currentCollectionId) return 1;
+              // Always put current collection first (except for "All Companies" view)
+              if (!isAllCompaniesView && a.id === currentCollectionId)
+                return -1;
+              if (!isAllCompaniesView && b.id === currentCollectionId) return 1;
               return a.collection_name.localeCompare(b.collection_name);
             })
             .map((collection) => (
@@ -247,22 +270,23 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
                   >
                     {collection.collection_name}
                   </Typography>
-                  {collection.id === currentCollectionId && (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        backgroundColor: "#f3f4f6",
-                        color: "#6b7280",
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: 1,
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                      }}
-                    >
-                      Current
-                    </Typography>
-                  )}
+                  {!isAllCompaniesView &&
+                    collection.id === currentCollectionId && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          backgroundColor: "#f3f4f6",
+                          color: "#6b7280",
+                          px: 1,
+                          py: 0.25,
+                          borderRadius: 1,
+                          fontSize: "0.75rem",
+                          fontWeight: 500,
+                        }}
+                      >
+                        Current
+                      </Typography>
+                    )}
                 </Box>
                 {selectedCollections.has(collection.id) && (
                   <Box
@@ -326,6 +350,8 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
           >
             {isLoading ? (
               <CircularProgress size={20} sx={{ color: "#ffffff" }} />
+            ) : isAllCompaniesView ? (
+              "Add to Collections"
             ) : (
               "Save Changes"
             )}
