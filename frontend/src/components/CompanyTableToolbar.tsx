@@ -41,6 +41,13 @@ const CompanyTableToolbar = ({
   searchQuery,
   onSearchChange,
 }: CompanyTableToolbarComponentProps) => {
+  console.log(
+    "selectedCompanyIds:",
+    selectedCompanyIds,
+    "selectedCount:",
+    selectedCount
+  );
+  console.log("isTransferring:", isTransferring);
   const [manageCollectionsAnchorEl, setManageCollectionsAnchorEl] =
     useState<null | HTMLElement>(null);
   const [isSelectingAll, setIsSelectingAll] = useState(false);
@@ -213,7 +220,7 @@ const CompanyTableToolbar = ({
                 boxShadow: "none",
               },
             }}
-            disabled={isTransferring || selectedCompanyIds.length === 0}
+            disabled={selectedCompanyIds.length === 0}
           >
             Manage collections
           </ModernButton>

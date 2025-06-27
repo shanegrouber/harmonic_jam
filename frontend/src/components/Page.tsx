@@ -50,6 +50,18 @@ const Page = () => {
     }
   }, [collectionResponse, selectedCollectionId]);
 
+  // Trigger URL update when default collection is set
+  useEffect(() => {
+    if (
+      hasInitialized &&
+      selectedCollectionId &&
+      !window.location.search.includes("collection=")
+    ) {
+      // Force a URL update when we set a default collection
+      isUpdatingUrl.current = false;
+    }
+  }, [hasInitialized, selectedCollectionId]);
+
   // Handle collection changes - reset page to 0 when collection changes
   useEffect(() => {
     if (
@@ -71,7 +83,7 @@ const Page = () => {
 
   // Update URL parameters when state changes
   useEffect(() => {
-    if (isUpdatingUrl.current) return;
+    if (!hasInitialized || isUpdatingUrl.current) return;
 
     isUpdatingUrl.current = true;
 
@@ -98,7 +110,7 @@ const Page = () => {
     setTimeout(() => {
       isUpdatingUrl.current = false;
     }, 0);
-  }, [selectedCollectionId, currentPage, currentPageSize]);
+  }, [selectedCollectionId, currentPage, currentPageSize, hasInitialized]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);

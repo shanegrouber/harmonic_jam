@@ -43,8 +43,8 @@ const CompanyTableFooter = ({
   ) => {
     if (event.key === "Enter") {
       const pageNumber = parseInt(pageInput, 10);
-      if (!isNaN(pageNumber) && pageNumber >= 0 && pageNumber <= maxPage) {
-        onPageChange(pageNumber);
+      if (!isNaN(pageNumber) && pageNumber >= 1 && pageNumber <= maxPage + 1) {
+        onPageChange(pageNumber - 1);
         setPageInput("");
       }
     }

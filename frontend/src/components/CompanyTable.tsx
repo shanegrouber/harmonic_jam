@@ -1,298 +1,72 @@
-import { useState, useEffect, useCallback } from "react";
-import Alert from "@mui/material/Alert";
-import Snackbar from "@mui/material/Snackbar";
+import { useState, useEffect } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { getCollectionsById, toggleCompanyLike } from "../utils/jam-api";
-import {
-  createTransferJob,
-  getTransferJobStatus,
-  getCompaniesTransferStatus,
-  removeCompaniesFromCollection,
-} from "../utils/transfer-api";
+import { removeCompaniesFromCollection } from "../utils/transfer-api";
 import { getCompanyTableColumns } from "./CompanyTableColumns";
-import {
-  RowStatus,
-  RowStatuses,
-  Collection,
-  Company,
-  CompanyTableComponentProps,
-} from "../types";
+import { CompanyTableComponentProps } from "../types";
 import CompanyTableToolbar from "./CompanyTableToolbar";
 import CompanyTableFooter from "./CompanyTableFooter";
-import { useSearch } from "../utils/useApi";
+import CompanyContextMenu from "./CompanyContextMenu";
+import ToastNotification from "./ToastNotification";
+import { useContextMenu } from "../hooks/useContextMenu";
+import { useToast } from "../hooks/useToast";
+import { useRowStatus } from "../hooks/useRowStatus";
+import { useTransfer } from "../hooks/useTransfer";
+import { useCompanyData } from "../hooks/useCompanyData";
 
-const createRowStatuses = (): RowStatuses => ({});
-
-const updateRowStatus = (
-  rowStatuses: RowStatuses,
-  rowId: number,
-  status: RowStatus
-): RowStatuses => ({
-  ...rowStatuses,
-  [rowId]: status,
-});
-
-const loadTransferStatuses = async (
-  response: Company[],
-  setRowStatuses: (statuses: RowStatuses) => void
-) => {
-  if (response.length === 0) {
-    return;
-  }
-
-  try {
-    const companyIds = response.map((company) => company.id);
-    const transferStatuses = await getCompaniesTransferStatus(companyIds);
-    const newStatuses: RowStatuses = {};
-
-    for (const company of response) {
-      const companyTransferStatuses = transferStatuses[company.id] || [];
-      if (companyTransferStatuses.length > 0) {
-        const latestStatus = companyTransferStatuses[0];
-        if (
-          latestStatus.status === "pending" ||
-          latestStatus.status === "processing"
-        ) {
-          newStatuses[company.id] = latestStatus.status as RowStatus;
-        }
-      }
-    }
-
-    setRowStatuses(newStatuses);
-  } catch (error) {
-    console.error("Failed to load transfer statuses:", error);
-  }
-};
 const CompanyTable = ({
   selectedCollectionId,
   collections,
   currentCollectionId,
-  currentCollection,
   currentPage,
   currentPageSize,
   onPageChange,
   onPageSizeChange,
 }: CompanyTableComponentProps) => {
-  const [response, setResponse] = useState<Company[]>([]);
-  const [total, setTotal] = useState<number>();
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>([]);
-  const [rowStatuses, setRowStatuses] = useState<RowStatuses>(
-    createRowStatuses()
-  );
-  const [isTransferring, setIsTransferring] = useState(false);
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: "success" | "error" | "info";
-  }>({
-    open: false,
-    message: "",
-    severity: "info",
-  });
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [loadTime, setLoadTime] = useState<number | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-  const [lastTransferTarget, setLastTransferTarget] =
-    useState<Collection | null>(null);
 
-  // Search functionality
-  const { searchQuery, debouncedSearchQuery, handleSearchChange } = useSearch();
-
-  // Calculate offset from current page and page size
-  const offset = currentPage * currentPageSize;
-
-  const fetchData = useCallback(async () => {
-    const startTime = performance.now();
-    try {
-      const newResponse = await getCollectionsById(
-        selectedCollectionId,
-        offset,
-        currentPageSize,
-        debouncedSearchQuery
-      );
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-      setLoadTime(duration);
-      setResponse(newResponse.companies);
-      setTotal(newResponse.total);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  }, [selectedCollectionId, offset, currentPageSize, debouncedSearchQuery]);
-
-  useEffect(() => {
-    fetchData();
-  }, [
+  // Custom hooks
+  const { showToast, snackbar, handleCloseSnackbar } = useToast();
+  const {
+    contextMenu,
+    contextMenuRow,
+    handleContextMenu,
+    handleCloseContextMenu,
+  } = useContextMenu();
+  const { isTransferring, currentJobId, initiateTransfer, resetTransfer } =
+    useTransfer(showToast);
+  const {
+    response,
+    setResponse,
+    total,
+    setTotal,
+    loadTime,
+    searchQuery,
+    handleSearchChange,
+  } = useCompanyData(
     selectedCollectionId,
-    offset,
+    currentPage,
     currentPageSize,
     refreshTrigger,
-    debouncedSearchQuery,
-    fetchData,
-  ]);
+    onPageChange
+  );
+  const { rowStatuses } = useRowStatus(
+    response,
+    currentJobId,
+    isTransferring,
+    resetTransfer
+  );
 
-  // Reset to first page when search query changes
-  useEffect(() => {
-    if (debouncedSearchQuery !== searchQuery && currentPage !== 0) {
-      onPageChange(0);
-    }
-  }, [debouncedSearchQuery, currentPage, onPageChange, searchQuery]);
-
-  // Reset selection when collection changes
+  // Reset selection only when the collection changes
   useEffect(() => {
     setSelectedCompanyIds([]);
   }, [selectedCollectionId]);
-
-  // Reset selection when data changes (companies might have been removed)
-  useEffect(() => {
-    // Filter out any selected companies that are no longer in the current response
-    setSelectedCompanyIds((prev) =>
-      prev.filter((id) => response.some((company) => company.id === id))
-    );
-  }, [response]);
-
-  useEffect(() => {
-    loadTransferStatuses(response, setRowStatuses);
-  }, [response]);
-
-  useEffect(() => {
-    if (!currentJobId || !isTransferring) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const jobStatus = await getTransferJobStatus(currentJobId);
-
-        const newStatuses: RowStatuses = {};
-        jobStatus.items.forEach((item) => {
-          if (item.status === "pending" || item.status === "processing") {
-            newStatuses[item.company_id] = item.status as RowStatus;
-          }
-        });
-
-        setRowStatuses(newStatuses);
-
-        if (jobStatus.pending_count === 0 && jobStatus.processing_count === 0) {
-          setIsTransferring(false);
-          setCurrentJobId(null);
-          clearInterval(pollInterval);
-
-          // Check if we need to refresh data for liked status updates
-          const isLikesCollection =
-            lastTransferTarget?.collection_name === "Liked Companies List";
-          const isCurrentCollectionLikes =
-            currentCollection?.collection_name === "Liked Companies List";
-
-          // Refresh data if we're on the likes collection or if we added to likes collection
-          if (isLikesCollection || isCurrentCollectionLikes) {
-            setRefreshTrigger((prev) => prev + 1);
-          }
-
-          setLastTransferTarget(null);
-
-          if (jobStatus.error_count === 0) {
-            showToast(
-              `Successfully added ${jobStatus.success_count} companies`,
-              "success"
-            );
-          } else if (jobStatus.success_count === 0) {
-            showToast(
-              `Failed to add ${jobStatus.error_count} companies`,
-              "error"
-            );
-          } else {
-            showToast(
-              `Added ${jobStatus.success_count} companies, ${jobStatus.error_count} failed`,
-              "info"
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to poll job status:", error);
-      }
-    }, 2000); // Poll every 2 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [
-    currentJobId,
-    isTransferring,
-    collections,
-    currentCollection,
-    lastTransferTarget,
-  ]);
-
-  const showToast = (
-    message: string,
-    severity: "success" | "error" | "info"
-  ) => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-
-  const initiateTransfer = async (
-    companyIds: number[],
-    targetCollection: Collection
-  ) => {
-    setIsTransferring(true);
-    setLastTransferTarget(targetCollection);
-
-    try {
-      const transferJob = await createTransferJob({
-        company_ids: companyIds,
-        source_collection_id: selectedCollectionId,
-        collection_id: targetCollection.id,
-      });
-
-      setCurrentJobId(transferJob.job_id);
-
-      companyIds.forEach((id) => {
-        setRowStatuses((prev) => updateRowStatus(prev, id, "pending"));
-      });
-
-      setSelectedCompanyIds([]);
-    } catch (error) {
-      console.error("Failed to initiate transfer:", error);
-      setIsTransferring(false);
-      setLastTransferTarget(null);
-      showToast("Failed to initiate transfer", "error");
-    }
-  };
-
-  const onDeselectAll = () => {
-    setSelectedCompanyIds([]);
-  };
-
-  const onRefresh = () => {
-    setRefreshTrigger((prev) => prev + 1);
-  };
-
-  const onSelectAll = async () => {
-    if (total) {
-      try {
-        // Fetch all companies in the collection to get their actual IDs
-        const allCompaniesResponse = await getCollectionsById(
-          selectedCollectionId,
-          0,
-          total
-        );
-        const allCompanyIds = allCompaniesResponse.companies.map(
-          (company) => company.id
-        );
-        setSelectedCompanyIds(allCompanyIds);
-      } catch (error) {
-        console.error("Failed to fetch all companies for select all:", error);
-        showToast("Failed to select all companies", "error");
-      }
-    }
-  };
 
   const handleToggleLike = async (companyId: number) => {
     try {
       const result = await toggleCompanyLike(companyId);
 
-      // Update the local state immediately for better UX
       setResponse((prev) =>
         prev.map((company) =>
           company.id === companyId
@@ -326,6 +100,46 @@ const CompanyTable = ({
     } catch (error) {
       console.error("Failed to delete company:", error);
       showToast("Failed to remove company from collection", "error");
+    }
+  };
+
+  const handleCopyCompanyName = async () => {
+    if (contextMenuRow) {
+      try {
+        await navigator.clipboard.writeText(contextMenuRow.company_name);
+        showToast("Company name copied to clipboard", "success");
+      } catch (error) {
+        console.error("Failed to copy to clipboard:", error);
+        showToast("Failed to copy company name", "error");
+      }
+    }
+    handleCloseContextMenu();
+  };
+
+  const onDeselectAll = () => {
+    setSelectedCompanyIds([]);
+  };
+
+  const onRefresh = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  const onSelectAll = async () => {
+    if (total) {
+      try {
+        const allCompaniesResponse = await getCollectionsById(
+          selectedCollectionId,
+          0,
+          total
+        );
+        const allCompanyIds = allCompaniesResponse.companies.map(
+          (company) => company.id
+        );
+        setSelectedCompanyIds(allCompanyIds);
+      } catch (error) {
+        console.error("Failed to fetch all companies for select all:", error);
+        showToast("Failed to select all companies", "error");
+      }
     }
   };
 
@@ -368,29 +182,11 @@ const CompanyTable = ({
             pagination
             checkboxSelection
             onRowSelectionModelChange={(newSelection) => {
-              // Convert the new selection to numbers and merge with existing selections
-              const newSelectionNumbers = newSelection as number[];
-              const currentSelection = new Set(selectedCompanyIds);
-
-              // Add newly selected rows
-              newSelectionNumbers.forEach((id) => currentSelection.add(id));
-
-              // Remove deselected rows (rows that were in current selection but not in new selection)
-              const currentRowIds = new Set(response.map((row) => row.id));
-              selectedCompanyIds.forEach((id) => {
-                if (
-                  currentRowIds.has(id) &&
-                  !newSelectionNumbers.includes(id)
-                ) {
-                  currentSelection.delete(id);
-                }
-              });
-
-              setSelectedCompanyIds(Array.from(currentSelection));
+              const ids = (newSelection as (number | string)[]).map(Number);
+              console.log("New selection:", ids);
+              setSelectedCompanyIds(ids);
             }}
-            rowSelectionModel={selectedCompanyIds.filter((id) =>
-              response.some((row) => row.id === id)
-            )}
+            rowSelectionModel={selectedCompanyIds}
             paginationMode="server"
             onPaginationModelChange={(newMeta) => {
               onPageSizeChange(newMeta.pageSize);
@@ -398,13 +194,26 @@ const CompanyTable = ({
             }}
             getRowClassName={(params) => {
               const status = rowStatuses[params.id as number];
-              return status === "pending"
-                ? "row-pending"
-                : status === "success"
-                ? "row-success"
-                : status === "error"
-                ? "row-error"
-                : "";
+              const isContextMenuRow = contextMenuRow?.id === params.id;
+              let className = "";
+
+              if (status === "pending") className += "row-pending ";
+              if (status === "success") className += "row-success ";
+              if (status === "error") className += "row-error ";
+              if (isContextMenuRow) className += "row-context-menu ";
+
+              return className.trim();
+            }}
+            slotProps={{
+              row: {
+                onContextMenu: (event: React.MouseEvent) => {
+                  const rowId = event.currentTarget.getAttribute("data-id");
+                  const row = response.find((r) => r.id === Number(rowId));
+                  if (row) {
+                    handleContextMenu(event, row);
+                  }
+                },
+              },
             }}
             sx={{
               border: "none",
@@ -415,9 +224,9 @@ const CompanyTable = ({
                 opacity: 0.6,
               },
               "& .row-success": {
-                backgroundColor: "#f5fef9", // very faint green
+                backgroundColor: "#f5fef9",
                 "& .MuiDataGrid-cell": {
-                  borderLeft: "4px solid #8ed1b9", // thin green bar
+                  borderLeft: "4px solid #8ed1b9",
                   borderRight: "none",
                   "&:not(:first-of-type)": {
                     borderLeft: "none",
@@ -425,14 +234,17 @@ const CompanyTable = ({
                 },
               },
               "& .row-error": {
-                backgroundColor: "#fff8f6", // faint red
+                backgroundColor: "#fff8f6",
                 "& .MuiDataGrid-cell": {
-                  borderLeft: "4px solid #f28b82", // thin red bar
+                  borderLeft: "4px solid #f28b82",
                   borderRight: "none",
                   "&:not(:first-of-type)": {
                     borderLeft: "none",
                   },
                 },
+              },
+              "& .row-context-menu": {
+                backgroundColor: "rgba(0, 0, 0, 0.04) !important",
               },
               "& .status-header": {
                 background: "transparent !important",
@@ -464,28 +276,26 @@ const CompanyTable = ({
           />
         </div>
 
+        <CompanyContextMenu
+          contextMenu={contextMenu}
+          onClose={handleCloseContextMenu}
+          onCopyCompanyName={handleCopyCompanyName}
+        />
+
         <CompanyTableFooter
-          offset={offset}
+          offset={currentPage * currentPageSize}
           pageSize={currentPageSize}
           total={total}
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
         />
 
-        <Snackbar
+        <ToastNotification
           open={snackbar.open}
-          autoHideDuration={6000}
+          message={snackbar.message}
+          severity={snackbar.severity}
           onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            variant="filled"
-          >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
+        />
       </div>
     </>
   );
