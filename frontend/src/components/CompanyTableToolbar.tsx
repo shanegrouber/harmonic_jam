@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, Typography, MenuItem, Menu, Divider } from "@mui/material";
 import { Collection, CompanyTableToolbarComponentProps } from "../types";
 import ModernButton from "./ui/ModernButton";
+import SearchBar from "./ui/SearchBar";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 function formatResultsCount(count: number | undefined) {
@@ -33,6 +34,8 @@ const CompanyTableToolbar = ({
   onDeselectAll,
   total,
   loadTime,
+  searchQuery,
+  onSearchChange,
 }: CompanyTableToolbarComponentProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isSelectingAll, setIsSelectingAll] = useState(false);
@@ -84,9 +87,14 @@ const CompanyTableToolbar = ({
         overflow: "hidden",
       }}
     >
-      {/* Left side - Future features like search can go here */}
+      {/* Left side - Search bar */}
       <Box display="flex" alignItems="center" gap={2}>
-        {/* Placeholder for future features */}
+        <SearchBar
+          placeholder="Search companies by name"
+          value={searchQuery}
+          onChange={onSearchChange}
+          minWidth={300}
+        />
       </Box>
 
       {/* Right side - Selection controls and other elements */}

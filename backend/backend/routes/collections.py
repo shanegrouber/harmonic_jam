@@ -45,6 +45,7 @@ def get_company_collection_by_id(
         0, description="The number of items to skip from the beginning"
     ),
     limit: int = Query(10, description="The number of items to fetch"),
+    search: str = Query(None, description="Search by company name"),
     db: Session = Depends(database.get_db),
 ):
     # Single query to get companies and total count
@@ -66,10 +67,14 @@ def get_company_collection_by_id(
             == database.CompanyCollection.id,
         )
         .filter(database.CompanyCollectionAssociation.collection_id == collection_id)
-        .order_by(database.Company.id)
-        .offset(offset)
-        .limit(limit)
     )
+
+    if search:
+        search_filter = database.Company.company_name.ilike(f"%{search}%")
+
+        query = query.filter(search_filter)
+
+    query = query.order_by(database.Company.id).offset(offset).limit(limit)
 
     results = query.all()
 

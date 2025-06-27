@@ -18,6 +18,7 @@ import {
 } from "../types";
 import CompanyTableToolbar from "./CompanyTableToolbar";
 import CompanyTableFooter from "./CompanyTableFooter";
+import { useSearch } from "../utils/useApi";
 
 const createRowStatuses = (): RowStatuses => ({});
 
@@ -93,6 +94,9 @@ const CompanyTable = ({
   const [lastTransferTarget, setLastTransferTarget] =
     useState<Collection | null>(null);
 
+  // Search functionality
+  const { searchQuery, debouncedSearchQuery, handleSearchChange } = useSearch();
+
   // Calculate offset from current page and page size
   const offset = currentPage * currentPageSize;
 
@@ -102,7 +106,8 @@ const CompanyTable = ({
       const newResponse = await getCollectionsById(
         selectedCollectionId,
         offset,
-        currentPageSize
+        currentPageSize,
+        debouncedSearchQuery
       );
       const endTime = performance.now();
       const duration = endTime - startTime;
@@ -116,7 +121,20 @@ const CompanyTable = ({
 
   useEffect(() => {
     fetchData();
-  }, [selectedCollectionId, offset, currentPageSize, refreshTrigger]);
+  }, [
+    selectedCollectionId,
+    offset,
+    currentPageSize,
+    refreshTrigger,
+    debouncedSearchQuery,
+  ]);
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    if (currentPage !== 0) {
+      onPageChange(0);
+    }
+  }, [debouncedSearchQuery, currentPage, onPageChange]);
 
   useEffect(() => {
     loadTransferStatuses(response, setRowStatuses);
@@ -286,6 +304,8 @@ const CompanyTable = ({
         onSelectAll={onSelectAll}
         total={total}
         loadTime={loadTime}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
       />
       <div
         className="table-container flex flex-col h-full w-full min-w-0 overflow-hidden"

@@ -31,4 +31,6 @@ export interface CompanyTableToolbarComponentProps {
   onDeselectAll: () => void;
   total?: number;
   loadTime?: number | null;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }

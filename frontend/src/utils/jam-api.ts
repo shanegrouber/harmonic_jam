@@ -24,13 +24,15 @@ export async function getCompanies(
 export async function getCollectionsById(
   id: string,
   offset?: number,
-  limit?: number
+  limit?: number,
+  search?: string
 ): Promise<Collection> {
   try {
     const response = await axios.get(`${BASE_URL}/collections/${id}`, {
       params: {
         offset,
         limit,
+        search,
       },
     });
     return response.data;
