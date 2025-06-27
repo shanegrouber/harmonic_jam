@@ -4,40 +4,34 @@ import {
   GridAlignment,
 } from "@mui/x-data-grid";
 import FavoriteIcon from "@mui/icons-material/Favorite";
-import { RowStatuses, Collection } from "../types";
+import { RowStatuses } from "../types";
 import Box from "@mui/material/Box";
 import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
 import CircularProgress from "@mui/material/CircularProgress";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 
-export function getCompanyTableColumns(
-  rowStatuses: RowStatuses,
-  currentCollection?: Collection
-): GridColDef[] {
+export function getCompanyTableColumns(rowStatuses: RowStatuses): GridColDef[] {
   const columns: GridColDef[] = [
-    ...(currentCollection?.collection_name === "My List"
-      ? [
-          {
-            field: "liked",
-            headerName: "Liked",
-            width: 120,
-            renderCell: (params: GridRenderCellParams) =>
-              params.value ? (
-                <FavoriteIcon sx={{ color: "#ff6600" }} fontSize="small" />
-              ) : (
-                <FavoriteBorderIcon sx={{ color: "#bbb" }} fontSize="small" />
-              ),
-            sortable: true,
-            filterable: false,
-            disableColumnMenu: true,
-            disableReorder: true,
-            resizable: false,
-            headerAlign: "center" as GridAlignment,
-            align: "center" as GridAlignment,
-          },
-        ]
-      : []),
+    {
+      field: "liked",
+      headerName: "Liked",
+      width: 120,
+      renderCell: (params: GridRenderCellParams) =>
+        params.value ? (
+          <FavoriteIcon sx={{ color: "#ff6600" }} fontSize="small" />
+        ) : (
+          <FavoriteBorderIcon sx={{ color: "#bbb" }} fontSize="small" />
+        ),
+      sortable: true,
+      filterable: false,
+      disableColumnMenu: true,
+      disableReorder: true,
+      resizable: false,
+      headerAlign: "center" as GridAlignment,
+      align: "center" as GridAlignment,
+    },
+
     {
       field: "company_name",
       headerName: "Company",

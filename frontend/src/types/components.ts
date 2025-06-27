@@ -27,7 +27,7 @@ export interface CompanyTableToolbarComponentProps {
     companyIds: number[],
     targetCollection: Collection
   ) => void;
-  onSelectAll: () => void;
+  onSelectAll: () => Promise<void>;
   onDeselectAll: () => void;
   total?: number;
   loadTime?: number | null;

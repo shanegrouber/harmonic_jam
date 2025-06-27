@@ -35,6 +35,7 @@ const CompanyTableToolbar = ({
   loadTime,
 }: CompanyTableToolbarComponentProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
   const menuOpen = Boolean(anchorEl);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -50,6 +51,17 @@ const CompanyTableToolbar = ({
   const handleMoveToCollection = async (targetCollection: Collection) => {
     setAnchorEl(null);
     await initiateTransfer(selectedCompanyIds, targetCollection);
+  };
+
+  const handleSelectAll = async () => {
+    setIsSelectingAll(true);
+    try {
+      await onSelectAll();
+    } catch (error) {
+      console.error("Failed to select all:", error);
+    } finally {
+      setIsSelectingAll(false);
+    }
   };
 
   const otherCollections = collections.filter(
@@ -122,7 +134,8 @@ const CompanyTableToolbar = ({
 
         <Box display="flex" alignItems="center" gap={3}>
           <ModernButton
-            onClick={onSelectAll}
+            onClick={handleSelectAll}
+            disabled={isSelectingAll}
             sx={{
               mb: 0,
               borderRadius: 2,
@@ -136,7 +149,7 @@ const CompanyTableToolbar = ({
               },
             }}
           >
-            Select all
+            {isSelectingAll ? "Selecting..." : "Select all"}
           </ModernButton>
 
           <ModernButton

@@ -89,23 +89,34 @@ const CompanyTable = ({
   });
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [loadTime, setLoadTime] = useState<number | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [lastTransferTarget, setLastTransferTarget] =
+    useState<Collection | null>(null);
 
   // Calculate offset from current page and page size
   const offset = currentPage * currentPageSize;
 
-  useEffect(() => {
+  const fetchData = async () => {
     const startTime = performance.now();
+    try {
+      const newResponse = await getCollectionsById(
+        selectedCollectionId,
+        offset,
+        currentPageSize
+      );
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      setLoadTime(duration);
+      setResponse(newResponse.companies);
+      setTotal(newResponse.total);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
 
-    getCollectionsById(selectedCollectionId, offset, currentPageSize).then(
-      (newResponse) => {
-        const endTime = performance.now();
-        const duration = endTime - startTime;
-        setLoadTime(duration);
-        setResponse(newResponse.companies);
-        setTotal(newResponse.total);
-      }
-    );
-  }, [selectedCollectionId, offset, currentPageSize]);
+  useEffect(() => {
+    fetchData();
+  }, [selectedCollectionId, offset, currentPageSize, refreshTrigger]);
 
   useEffect(() => {
     loadTransferStatuses(response, setRowStatuses);
@@ -132,6 +143,19 @@ const CompanyTable = ({
           setCurrentJobId(null);
           clearInterval(pollInterval);
 
+          // Check if we need to refresh data for liked status updates
+          const isLikesCollection =
+            lastTransferTarget?.collection_name === "Liked Companies List";
+          const isCurrentCollectionLikes =
+            currentCollection?.collection_name === "Liked Companies List";
+
+          // Refresh data if we're on the likes collection or if we added to likes collection
+          if (isLikesCollection || isCurrentCollectionLikes) {
+            setRefreshTrigger((prev) => prev + 1);
+          }
+
+          setLastTransferTarget(null);
+
           if (jobStatus.error_count === 0) {
             showToast(
               `Successfully added ${jobStatus.success_count} companies`,
@@ -155,7 +179,13 @@ const CompanyTable = ({
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(pollInterval);
-  }, [currentJobId, isTransferring]);
+  }, [
+    currentJobId,
+    isTransferring,
+    collections,
+    currentCollection,
+    lastTransferTarget,
+  ]);
 
   const showToast = (
     message: string,
@@ -173,6 +203,7 @@ const CompanyTable = ({
     targetCollection: Collection
   ) => {
     setIsTransferring(true);
+    setLastTransferTarget(targetCollection);
 
     try {
       const transferJob = await createTransferJob({
@@ -191,6 +222,7 @@ const CompanyTable = ({
     } catch (error) {
       console.error("Failed to initiate transfer:", error);
       setIsTransferring(false);
+      setLastTransferTarget(null);
       showToast("Failed to initiate transfer", "error");
     }
   };
@@ -199,15 +231,27 @@ const CompanyTable = ({
     setSelectedCompanyIds([]);
   };
 
-  const onSelectAll = () => {
+  const onSelectAll = async () => {
     if (total) {
-      // Generate IDs for all records (assuming IDs are sequential from 1 to total)
-      const allIds = Array.from({ length: total }, (_, index) => index + 1);
-      setSelectedCompanyIds(allIds);
+      try {
+        // Fetch all companies in the collection to get their actual IDs
+        const allCompaniesResponse = await getCollectionsById(
+          selectedCollectionId,
+          0,
+          total
+        );
+        const allCompanyIds = allCompaniesResponse.companies.map(
+          (company) => company.id
+        );
+        setSelectedCompanyIds(allCompanyIds);
+      } catch (error) {
+        console.error("Failed to fetch all companies for select all:", error);
+        showToast("Failed to select all companies", "error");
+      }
     }
   };
 
-  const columns = getCompanyTableColumns(rowStatuses, currentCollection);
+  const columns = getCompanyTableColumns(rowStatuses);
 
   return (
     <>
