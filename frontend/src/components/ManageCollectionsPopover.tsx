@@ -231,7 +231,8 @@ const ManageCollectionsPopover: React.FC<ManageCollectionsPopoverProps> = ({
               if (!isAllCompaniesView && a.id === currentCollectionId)
                 return -1;
               if (!isAllCompaniesView && b.id === currentCollectionId) return 1;
-              return a.collection_name.localeCompare(b.collection_name);
+              // Otherwise maintain original order (no sorting)
+              return 0;
             })
             .map((collection) => (
               <Box
