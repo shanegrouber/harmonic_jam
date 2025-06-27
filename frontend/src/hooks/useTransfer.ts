@@ -3,7 +3,8 @@ import { Collection } from "../types";
 import { createTransferJob } from "../utils/transfer-api";
 
 export const useTransfer = (
-  showToast: (message: string, severity: "success" | "error" | "info") => void
+  showToast: (message: string, severity: "success" | "error" | "info") => void,
+  onTransferComplete?: (targetCollection: Collection) => void
 ) => {
   const [isTransferring, setIsTransferring] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
@@ -35,6 +36,12 @@ export const useTransfer = (
   const resetTransfer = () => {
     setIsTransferring(false);
     setCurrentJobId(null);
+
+    // Call the completion callback if we have a target collection and callback
+    if (lastTransferTarget && onTransferComplete) {
+      onTransferComplete(lastTransferTarget);
+    }
+
     setLastTransferTarget(null);
   };
 

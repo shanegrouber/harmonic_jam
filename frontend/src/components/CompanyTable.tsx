@@ -35,7 +35,12 @@ const CompanyTable = ({
     handleCloseContextMenu,
   } = useContextMenu();
   const { isTransferring, currentJobId, initiateTransfer, resetTransfer } =
-    useTransfer(showToast);
+    useTransfer(showToast, (targetCollection) => {
+      // Refresh the UI when transfers to the "Liked Companies List" complete
+      if (targetCollection.collection_name === "Liked Companies List") {
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    });
   const {
     response,
     setResponse,
