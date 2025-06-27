@@ -3,6 +3,11 @@ import Alert from "@mui/material/Alert";
 import Snackbar from "@mui/material/Snackbar";
 import { DataGrid } from "@mui/x-data-grid";
 import { getCollectionsById } from "../utils/jam-api";
+import {
+  createTransferJob,
+  getTransferJobStatus,
+  getCompaniesTransferStatus,
+} from "../utils/transfer-api";
 import { getCompanyTableColumns } from "./CompanyTableColumns";
 import {
   RowStatus,
@@ -24,6 +29,37 @@ const updateRowStatus = (
   [rowId]: status,
 });
 
+const loadTransferStatuses = async (
+  response: Company[],
+  setRowStatuses: (statuses: RowStatuses) => void
+) => {
+  if (response.length === 0) {
+    return;
+  }
+
+  try {
+    const companyIds = response.map((company) => company.id);
+    const transferStatuses = await getCompaniesTransferStatus(companyIds);
+    const newStatuses: RowStatuses = {};
+
+    for (const company of response) {
+      const companyTransferStatuses = transferStatuses[company.id] || [];
+      if (companyTransferStatuses.length > 0) {
+        const latestStatus = companyTransferStatuses[0];
+        if (
+          latestStatus.status === "pending" ||
+          latestStatus.status === "processing"
+        ) {
+          newStatuses[company.id] = latestStatus.status as RowStatus;
+        }
+      }
+    }
+
+    setRowStatuses(newStatuses);
+  } catch (error) {
+    console.error("Failed to load transfer statuses:", error);
+  }
+};
 const CompanyTable = ({
   selectedCollectionId,
   collections,
@@ -48,6 +84,7 @@ const CompanyTable = ({
     message: "",
     severity: "info",
   });
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   useEffect(() => {
     getCollectionsById(selectedCollectionId, offset, pageSize).then(
@@ -62,6 +99,56 @@ const CompanyTable = ({
     setOffset(0);
     setRowStatuses(createRowStatuses());
   }, [selectedCollectionId]);
+
+  useEffect(() => {
+    loadTransferStatuses(response, setRowStatuses);
+  }, [response]);
+
+  useEffect(() => {
+    if (!currentJobId || !isTransferring) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const jobStatus = await getTransferJobStatus(currentJobId);
+
+        const newStatuses: RowStatuses = {};
+        jobStatus.items.forEach((item) => {
+          if (item.status === "pending" || item.status === "processing") {
+            newStatuses[item.company_id] = item.status as RowStatus;
+          }
+        });
+
+        setRowStatuses(newStatuses);
+
+        if (jobStatus.pending_count === 0 && jobStatus.processing_count === 0) {
+          setIsTransferring(false);
+          setCurrentJobId(null);
+          clearInterval(pollInterval);
+
+          if (jobStatus.error_count === 0) {
+            showToast(
+              `Successfully added ${jobStatus.success_count} companies`,
+              "success"
+            );
+          } else if (jobStatus.success_count === 0) {
+            showToast(
+              `Failed to add ${jobStatus.error_count} companies`,
+              "error"
+            );
+          } else {
+            showToast(
+              `Added ${jobStatus.success_count} companies, ${jobStatus.error_count} failed`,
+              "info"
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to poll job status:", error);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [currentJobId, isTransferring]);
 
   const showToast = (
     message: string,
@@ -79,37 +166,25 @@ const CompanyTable = ({
     targetCollection: Collection
   ) => {
     setIsTransferring(true);
-    companyIds.forEach((id) => {
-      setRowStatuses((prev) => updateRowStatus(prev, id, "pending"));
-    });
-    let successCount = 0;
-    let errorCount = 0;
-    for (let i = 0; i < companyIds.length; i++) {
-      const companyId = companyIds[i];
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setRowStatuses((prev) => updateRowStatus(prev, companyId, "success"));
-        successCount++;
-      } catch (error) {
-        setRowStatuses((prev) => updateRowStatus(prev, companyId, "error"));
-        errorCount++;
-      }
-    }
-    setIsTransferring(false);
-    setSelectedCompanyIds([]);
-    if (errorCount === 0) {
-      showToast(
-        `Successfully moved ${successCount} companies to ${targetCollection.collection_name}`,
-        "success"
-      );
-    } else if (successCount === 0) {
-      showToast(`Failed to move ${errorCount} companies`, "error");
-    } else {
-      showToast(
-        `Moved ${successCount} companies, ${errorCount} failed`,
-        "info"
-      );
+
+    try {
+      const transferJob = await createTransferJob({
+        company_ids: companyIds,
+        source_collection_id: selectedCollectionId,
+        collection_id: targetCollection.id,
+      });
+
+      setCurrentJobId(transferJob.job_id);
+
+      companyIds.forEach((id) => {
+        setRowStatuses((prev) => updateRowStatus(prev, id, "pending"));
+      });
+
+      setSelectedCompanyIds([]);
+    } catch (error) {
+      console.error("Failed to initiate transfer:", error);
+      setIsTransferring(false);
+      showToast("Failed to initiate transfer", "error");
     }
   };
 

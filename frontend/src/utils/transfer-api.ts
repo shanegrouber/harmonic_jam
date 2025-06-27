@@ -1,56 +1,5 @@
-import axios from "axios";
-import { CompanyBatchResponse, Collection } from "../types";
+const API_BASE_URL = "http://localhost:8000";
 
-const BASE_URL = "http://localhost:8000";
-
-export async function getCompanies(
-  offset?: number,
-  limit?: number
-): Promise<CompanyBatchResponse> {
-  try {
-    const response = await axios.get(`${BASE_URL}/companies`, {
-      params: {
-        offset,
-        limit,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching companies:", error);
-    throw error;
-  }
-}
-
-export async function getCollectionsById(
-  id: string,
-  offset?: number,
-  limit?: number
-): Promise<Collection> {
-  try {
-    const response = await axios.get(`${BASE_URL}/collections/${id}`, {
-      params: {
-        offset,
-        limit,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching companies:", error);
-    throw error;
-  }
-}
-
-export async function getCollectionsMetadata(): Promise<Collection[]> {
-  try {
-    const response = await axios.get(`${BASE_URL}/collections`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching companies:", error);
-    throw error;
-  }
-}
-
-// Transfer API functions
 export interface TransferJobCreate {
   company_ids: number[];
   source_collection_id?: string;
@@ -81,10 +30,18 @@ export interface TransferJobResponse {
   cancelled_count: number;
 }
 
+export interface CeleryTaskStatus {
+  state: string;
+  current: number;
+  total: number;
+  status: string;
+  result?: Record<string, unknown>;
+}
+
 export const createTransferJob = async (
   transferRequest: TransferJobCreate
 ): Promise<TransferJobResponse> => {
-  const response = await fetch(`${BASE_URL}/transfers/jobs`, {
+  const response = await fetch(`${API_BASE_URL}/transfers/jobs`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -102,7 +59,7 @@ export const createTransferJob = async (
 export const getTransferJobStatus = async (
   jobId: string
 ): Promise<TransferJobResponse> => {
-  const response = await fetch(`${BASE_URL}/transfers/jobs/${jobId}`);
+  const response = await fetch(`${API_BASE_URL}/transfers/jobs/${jobId}`);
 
   if (!response.ok) {
     throw new Error(
@@ -120,7 +77,7 @@ export const updateTransferItemStatus = async (
   errorMessage?: string
 ): Promise<void> => {
   const response = await fetch(
-    `${BASE_URL}/transfers/jobs/${jobId}/items/${itemId}/status`,
+    `${API_BASE_URL}/transfers/jobs/${jobId}/items/${itemId}/status`,
     {
       method: "PUT",
       headers: {
@@ -141,7 +98,7 @@ export const getCompanyTransferStatus = async (
   companyId: number
 ): Promise<TransferJobItemResponse[]> => {
   const response = await fetch(
-    `${BASE_URL}/transfers/companies/${companyId}/status`
+    `${API_BASE_URL}/transfers/companies/${companyId}/status`
   );
 
   if (!response.ok) {
@@ -153,12 +110,49 @@ export const getCompanyTransferStatus = async (
   return response.json();
 };
 
-export const cancelTransferJob = async (jobId: string): Promise<void> => {
-  const response = await fetch(`${BASE_URL}/transfers/jobs/${jobId}/cancel`, {
+export const getCompaniesTransferStatus = async (
+  companyIds: number[]
+): Promise<Record<number, TransferJobItemResponse[]>> => {
+  const response = await fetch(`${API_BASE_URL}/transfers/companies/status`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(companyIds),
   });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to get companies transfer status: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+};
+
+export const cancelTransferJob = async (jobId: string): Promise<void> => {
+  const response = await fetch(
+    `${API_BASE_URL}/transfers/jobs/${jobId}/cancel`,
+    {
+      method: "POST",
+    }
+  );
 
   if (!response.ok) {
     throw new Error(`Failed to cancel transfer job: ${response.statusText}`);
   }
+};
+
+export const getCeleryTaskStatus = async (
+  taskId: string
+): Promise<CeleryTaskStatus> => {
+  const response = await fetch(
+    `${API_BASE_URL}/transfers/tasks/${taskId}/status`
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get task status: ${response.statusText}`);
+  }
+
+  return response.json();
 };

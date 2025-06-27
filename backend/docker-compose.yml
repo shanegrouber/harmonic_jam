@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres-jam-db:
     image: postgres:15.0
@@ -21,12 +19,76 @@ services:
       - .:/app
     ports:
       - 8000:8000
-      - 5678:5678 
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+      - 5678:5678
+    command:
+      [
+        "python",
+        "-m",
+        "debugpy",
+        "--listen",
+        "0.0.0.0:5678",
+        "-m",
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
     depends_on:
       - postgres-jam-db
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
+      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
+      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+
+  celery-worker:
+    build: .
+    volumes:
+      - .:/app
+    command:
+      [
+        "celery",
+        "-A",
+        "backend.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=4",
+      ]
+    depends_on:
+      - postgres-jam-db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
+      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
+      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+
+  celery-beat:
+    build: .
+    volumes:
+      - .:/app
+    command: ["celery", "-A", "backend.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      - postgres-jam-db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
+      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
+      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+
+  flower:
+    build: .
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: celery --app=backend.celery_app flower --broker=redis://host.docker.internal:6379/0
+    ports:
+      - 5555:5555
+    depends_on:
+      - celery-worker
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
+      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
+      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
 
 volumes:
   postgres_data:

@@ -1,15 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.db import database
-from backend.routes.companies import (
-    CompanyBatchOutput,
-    fetch_companies_with_liked,
-)
+from backend.routes.companies import CompanyBatchOutput, CompanyOutput
 
 router = APIRouter(
     prefix="/collections",
@@ -50,22 +47,85 @@ def get_company_collection_by_id(
     limit: int = Query(10, description="The number of items to fetch"),
     db: Session = Depends(database.get_db),
 ):
+    # Single query to get companies and total count
     query = (
-        db.query(database.CompanyCollectionAssociation, database.Company)
-        .join(database.Company)
+        db.query(
+            database.Company.id,
+            database.Company.company_name,
+            database.CompanyCollection.collection_name,
+            func.count().over().label("total_count"),
+        )
+        .select_from(database.CompanyCollectionAssociation)
+        .join(
+            database.Company,
+            database.CompanyCollectionAssociation.company_id == database.Company.id,
+        )
+        .join(
+            database.CompanyCollection,
+            database.CompanyCollectionAssociation.collection_id
+            == database.CompanyCollection.id,
+        )
         .filter(database.CompanyCollectionAssociation.collection_id == collection_id)
+        .order_by(database.Company.id)
+        .offset(offset)
+        .limit(limit)
     )
 
-    total_count = query.with_entities(func.count()).scalar()
+    results = query.all()
 
-    results = query.offset(offset).limit(limit).all()
-    companies = fetch_companies_with_liked(db, [company.id for _, company in results])
+    if not results:
+        # Collection might exist but be empty, or collection doesn't exist
+        collection = (
+            db.query(database.CompanyCollection)
+            .filter(database.CompanyCollection.id == collection_id)
+            .first()
+        )
+
+        if not collection:
+            raise HTTPException(status_code=404, detail="Collection not found")
+
+        return CompanyCollectionOutput(
+            id=collection_id,
+            collection_name=collection.collection_name,
+            companies=[],
+            total=0,
+        )
+
+    collection_name = results[0].collection_name
+    total_count = results[0].total_count
+    company_ids = [result.id for result in results]
+
+    liked_list = (
+        db.query(database.CompanyCollection)
+        .filter(database.CompanyCollection.collection_name == "Liked Companies List")
+        .first()
+    )
+
+    liked_companies = set()
+
+    if liked_list:
+        liked_associations = (
+            db.query(database.CompanyCollectionAssociation.company_id)
+            .filter(database.CompanyCollectionAssociation.company_id.in_(company_ids))
+            .filter(
+                database.CompanyCollectionAssociation.collection_id == liked_list.id
+            )
+            .all()
+        )
+        liked_companies = {assoc.company_id for assoc in liked_associations}
+
+    companies = [
+        CompanyOutput(
+            id=result.id,
+            company_name=result.company_name,
+            liked=result.id in liked_companies,
+        )
+        for result in results
+    ]
 
     return CompanyCollectionOutput(
         id=collection_id,
-        collection_name=db.query(database.CompanyCollection)
-        .get(collection_id)
-        .collection_name,
+        collection_name=collection_name,
         companies=companies,
         total=total_count,
     )

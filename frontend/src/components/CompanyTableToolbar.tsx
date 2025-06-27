@@ -160,7 +160,7 @@ const CompanyTableToolbar = ({
           }}
           disabled={isTransferring || selectedCompanyIds.length === 0}
         >
-          Move to collection
+          Add to collection
         </ModernButton>
 
         <Typography
@@ -176,9 +176,12 @@ const CompanyTableToolbar = ({
         {otherCollections.length === 0 ? (
           <MenuItem disabled>No other collections</MenuItem>
         ) : (
-          otherCollections.map((col: Collection) => (
-            <MenuItem key={col.id} onClick={() => handleMoveToCollection(col)}>
-              {col.collection_name}
+          otherCollections.map((collection) => (
+            <MenuItem
+              key={collection.id}
+              onClick={() => handleMoveToCollection(collection)}
+            >
+              Add to {collection.collection_name}
             </MenuItem>
           ))
         )}

@@ -39,6 +39,26 @@ The database will automatically get seeded (see main.py) with:
 - List 1: 'My List' with 50k companies
 - List 2: 'Liked Companies' with 10 companies
 
+# Testing
+
+## Quick Test Commands
+
+Run all tests:
+
+```bash
+docker-compose exec web-api bash -c "cd /app && python tests/run_tests.py"
+```
+
+Run individual test suites:
+
+```bash
+# Simple transfer tests
+docker-compose exec web-api bash -c "cd /app && python -m tests.test_transfers_simple"
+
+# Batch transfer tests
+docker-compose exec web-api bash -c "cd /app && python -m tests.test_batch_transfers"
+```
+
 # Reset Docker Container
 
 1. Run `docker compose down`

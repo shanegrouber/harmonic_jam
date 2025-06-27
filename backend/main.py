@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
 from backend.db import database
-from backend.routes import collections, companies
+from backend.routes import collections, companies, transfers
 
 
 @asynccontextmanager
@@ -22,8 +22,8 @@ async def lifespan(app: FastAPI):
         db.add(database.Settings(setting_name="seeded"))
         db.commit()
         db.close()
+
     yield
-    # Clean up...
 
 
 app = FastAPI(lifespan=lifespan)
@@ -113,6 +113,7 @@ EXECUTE FUNCTION throttle_updates();
 
 app.include_router(companies.router)
 app.include_router(collections.router)
+app.include_router(transfers.router)
 
 app.add_middleware(
     CORSMiddleware,
