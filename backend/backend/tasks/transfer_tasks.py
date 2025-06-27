@@ -162,7 +162,7 @@ def process_transfer_batch(self, batch_data: dict):
 
 
 @celery_app.task(bind=True, name="backend.tasks.transfer_tasks.process_transfer_job")
-def process_transfer_job(self, job_id: str, batch_size: int = 1000):
+def process_transfer_job(self, job_id: str, batch_size: int = 100):
     """
     Process a transfer job by creating batches of companies
     """

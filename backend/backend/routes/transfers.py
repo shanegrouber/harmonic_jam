@@ -78,7 +78,7 @@ def create_transfer_job(
     db.commit()
 
     try:
-        batch_size = 1000
+        batch_size = 100
         celery_task = process_transfer_job.delay(str(job_id), batch_size)
     except Exception:
         raise

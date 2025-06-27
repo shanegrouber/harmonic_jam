@@ -16,7 +16,7 @@ task_eager_propagates = True
 # Worker settings
 worker_concurrency = 8  # Number of worker processes
 worker_prefetch_multiplier = 1
-worker_max_tasks_per_child = 1000
+worker_max_tasks_per_child = 100
 
 # Task settings
 task_time_limit = 300  # 5 minutes
