@@ -10,19 +10,64 @@ import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
 import CircularProgress from "@mui/material/CircularProgress";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import IconButton from "@mui/material/IconButton";
 
-export function getCompanyTableColumns(rowStatuses: RowStatuses): GridColDef[] {
+export function getCompanyTableColumns(
+  rowStatuses: RowStatuses,
+  onToggleLike?: (companyId: number) => Promise<void>
+): GridColDef[] {
   const columns: GridColDef[] = [
     {
       field: "liked",
       headerName: "Liked",
       width: 120,
-      renderCell: (params: GridRenderCellParams) =>
-        params.value ? (
-          <FavoriteIcon sx={{ color: "#ff6600" }} fontSize="small" />
-        ) : (
-          <FavoriteBorderIcon sx={{ color: "#bbb" }} fontSize="small" />
-        ),
+      renderCell: (params: GridRenderCellParams) => {
+        const isLiked = params.value;
+        const companyId = params.row.id;
+
+        const handleClick = async (event: React.MouseEvent) => {
+          event.stopPropagation();
+          if (onToggleLike) {
+            try {
+              await onToggleLike(companyId);
+            } catch (error) {
+              console.error("Failed to toggle like:", error);
+            }
+          }
+        };
+
+        return (
+          <IconButton
+            onClick={handleClick}
+            size="small"
+            sx={{
+              padding: 0,
+              "&:hover": {
+                backgroundColor: "transparent",
+                transform: "scale(1.1)",
+              },
+              "&:focus": {
+                outline: "none",
+                backgroundColor: "transparent",
+              },
+              "&:focus-visible": {
+                outline: "none",
+                backgroundColor: "transparent",
+              },
+              "&.Mui-focusVisible": {
+                outline: "none",
+                backgroundColor: "transparent",
+              },
+            }}
+          >
+            {isLiked ? (
+              <FavoriteIcon sx={{ color: "#ff6600" }} fontSize="small" />
+            ) : (
+              <FavoriteBorderIcon sx={{ color: "#bbb" }} fontSize="small" />
+            )}
+          </IconButton>
+        );
+      },
       sortable: true,
       filterable: false,
       disableColumnMenu: true,

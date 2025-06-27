@@ -162,3 +162,23 @@ export const cancelTransferJob = async (jobId: string): Promise<void> => {
     throw new Error(`Failed to cancel transfer job: ${response.statusText}`);
   }
 };
+
+export interface ToggleLikeResponse {
+  company_id: number;
+  liked: boolean;
+  message: string;
+}
+
+export async function toggleCompanyLike(
+  companyId: number
+): Promise<ToggleLikeResponse> {
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/companies/${companyId}/toggle-like`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error toggling company like:", error);
+    throw error;
+  }
+}

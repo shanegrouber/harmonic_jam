@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Alert from "@mui/material/Alert";
 import Snackbar from "@mui/material/Snackbar";
 import { DataGrid } from "@mui/x-data-grid";
-import { getCollectionsById } from "../utils/jam-api";
+import { getCollectionsById, toggleCompanyLike } from "../utils/jam-api";
 import {
   createTransferJob,
   getTransferJobStatus,
@@ -251,7 +251,27 @@ const CompanyTable = ({
     }
   };
 
-  const columns = getCompanyTableColumns(rowStatuses);
+  const handleToggleLike = async (companyId: number) => {
+    try {
+      const result = await toggleCompanyLike(companyId);
+
+      // Update the local state immediately for better UX
+      setResponse((prev) =>
+        prev.map((company) =>
+          company.id === companyId
+            ? { ...company, liked: result.liked }
+            : company
+        )
+      );
+
+      showToast(result.message, "success");
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      showToast("Failed to update like status", "error");
+    }
+  };
+
+  const columns = getCompanyTableColumns(rowStatuses, handleToggleLike);
 
   return (
     <>
