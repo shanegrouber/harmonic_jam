@@ -80,48 +80,81 @@ const CompanyTableToolbar = ({
       {/* Right side - Selection controls and other elements */}
       <Box display="flex" alignItems="center" gap={2}>
         {selectedCount > 0 && (
-          <>
-            <Typography variant="body2" color="text.secondary">
+          <Box display="flex" alignItems="center" gap={3}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                backgroundColor: "#f3f4f6",
+                color: "#374151",
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                fontSize: "0.875rem",
+                border: "1px solid #d1d5db",
+                userSelect: "none",
+                pointerEvents: "none",
+              }}
+            >
               {selectedCount} selected
             </Typography>
-
-            <Divider orientation="vertical" flexItem />
 
             <Typography
               variant="body2"
               color="primary"
-              sx={{ cursor: "pointer", fontWeight: 500 }}
+              sx={{
+                cursor: "pointer",
+                fontWeight: 500,
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  color: "primary.dark",
+                  transform: "translateY(-1px)",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                },
+              }}
               onClick={onDeselectAll}
             >
               Deselect all
             </Typography>
-          </>
+            <Divider orientation="vertical" flexItem />
+          </Box>
         )}
 
-        <Typography
-          variant="body2"
-          color="primary"
-          sx={{ cursor: "pointer", fontWeight: 500 }}
-          onClick={onSelectAll}
-        >
-          Select all
-        </Typography>
+        <Box display="flex" alignItems="center" gap={3}>
+          <ModernButton
+            onClick={onSelectAll}
+            sx={{
+              mb: 0,
+              borderRadius: 2,
+              minWidth: 80,
+              height: 32,
+              fontSize: "0.875rem",
+              backgroundColor: "#10b981",
+              color: "#ffffff",
+              "&:hover": {
+                backgroundColor: "#059669",
+              },
+            }}
+          >
+            Select all
+          </ModernButton>
 
-        <ModernButton
-          onClick={handleMenuOpen}
-          endIcon={<KeyboardArrowDownIcon />}
-          sx={{
-            mb: 0,
-            backgroundColor:
-              selectedCompanyIds.length === 0 ? "#e5e7eb" : undefined,
-            color: selectedCompanyIds.length === 0 ? "#888" : undefined,
-            borderRadius: 2,
-            minWidth: 110,
-          }}
-          disabled={isTransferring || selectedCompanyIds.length === 0}
-        >
-          Add to collection
-        </ModernButton>
+          <ModernButton
+            onClick={handleMenuOpen}
+            endIcon={<KeyboardArrowDownIcon />}
+            sx={{
+              mb: 0,
+              backgroundColor:
+                selectedCompanyIds.length === 0 ? "#e5e7eb" : undefined,
+              color: selectedCompanyIds.length === 0 ? "#888" : undefined,
+              borderRadius: 2,
+              minWidth: 110,
+            }}
+            disabled={isTransferring || selectedCompanyIds.length === 0}
+          >
+            Add to collection
+          </ModernButton>
+        </Box>
 
         <Typography
           variant="body2"

@@ -9,6 +9,7 @@ const Page = () => {
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [currentPageSize, setCurrentPageSize] = useState<number>(25);
   const [hasInitialized, setHasInitialized] = useState<boolean>(false);
+  const [previousCollectionId, setPreviousCollectionId] = useState<string>();
   const { data: collectionResponse } = useApi(() => getCollectionsMetadata());
 
   // Read initial state from URL parameters (only once on mount)
@@ -22,6 +23,7 @@ const Page = () => {
 
     if (collectionParam) {
       setSelectedCollectionId(collectionParam);
+      setPreviousCollectionId(collectionParam);
     }
     if (pageParam) {
       setCurrentPage(parseInt(pageParam, 10));
@@ -41,8 +43,28 @@ const Page = () => {
       collectionResponse.length > 0
     ) {
       setSelectedCollectionId(collectionResponse[0].id);
+      setPreviousCollectionId(collectionResponse[0].id);
     }
   }, [collectionResponse, selectedCollectionId]);
+
+  // Handle collection changes - reset page to 0 when collection changes
+  useEffect(() => {
+    if (
+      hasInitialized &&
+      selectedCollectionId &&
+      previousCollectionId &&
+      selectedCollectionId !== previousCollectionId
+    ) {
+      setCurrentPage(0);
+      setPreviousCollectionId(selectedCollectionId);
+    } else if (
+      hasInitialized &&
+      selectedCollectionId &&
+      !previousCollectionId
+    ) {
+      setPreviousCollectionId(selectedCollectionId);
+    }
+  }, [selectedCollectionId, previousCollectionId, hasInitialized]);
 
   // Update URL parameters when state changes
   useEffect(() => {
