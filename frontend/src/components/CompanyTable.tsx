@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { getCollectionsById, toggleCompanyLike } from "../utils/jam-api";
 import { removeCompaniesFromCollection } from "../utils/transfer-api";
 import { getCompanyTableColumns } from "./CompanyTableColumns";
 import { CompanyTableComponentProps } from "../types";
+import { Collection } from "../types";
 import CompanyTableToolbar from "./CompanyTableToolbar";
 import CompanyTableFooter from "./CompanyTableFooter";
 import CompanyContextMenu from "./CompanyContextMenu";
@@ -25,6 +26,8 @@ const CompanyTable = ({
 }: CompanyTableComponentProps) => {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [selectAllToggle, setSelectAllToggle] = useState<boolean>(false);
+  const previousCollectionIdRef = useRef<string>();
 
   // Custom hooks
   const { showToast, snackbar, handleCloseSnackbar } = useToast();
@@ -63,9 +66,17 @@ const CompanyTable = ({
     resetTransfer
   );
 
-  // Reset selection only when the collection changes
+  // Reset selection and toggle when the collection changes
   useEffect(() => {
-    setSelectedCompanyIds([]);
+    if (
+      previousCollectionIdRef.current &&
+      previousCollectionIdRef.current !== selectedCollectionId
+    ) {
+      setSelectedCompanyIds([]);
+      setSelectAllToggle(false);
+    }
+
+    previousCollectionIdRef.current = selectedCollectionId;
   }, [selectedCollectionId]);
 
   const handleToggleLike = async (companyId: number) => {
@@ -148,6 +159,28 @@ const CompanyTable = ({
     }
   };
 
+  const handleInitiateTransfer = (
+    companyIds: number[],
+    targetCollection: Collection,
+    sourceCollectionId: string,
+    isSelectAllToggle?: boolean
+  ) => {
+    initiateTransfer(
+      companyIds,
+      targetCollection,
+      sourceCollectionId,
+      isSelectAllToggle
+    );
+  };
+
+  const handleToggleStateChange = (enabled: boolean) => {
+    setSelectAllToggle(enabled);
+    if (!enabled) {
+      // Clear selection when toggle is disabled
+      setSelectedCompanyIds([]);
+    }
+  };
+
   const columns = getCompanyTableColumns(
     rowStatuses,
     handleToggleLike,
@@ -163,7 +196,7 @@ const CompanyTable = ({
         selectedCompanyIds={selectedCompanyIds}
         collections={collections}
         currentCollectionId={currentCollectionId}
-        initiateTransfer={initiateTransfer}
+        initiateTransfer={handleInitiateTransfer}
         onDeselectAll={onDeselectAll}
         onSelectAll={onSelectAll}
         onClearSelection={onDeselectAll}
@@ -172,6 +205,8 @@ const CompanyTable = ({
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
         onRefresh={onRefresh}
+        onToggleStateChange={handleToggleStateChange}
+        selectAllToggle={selectAllToggle}
       />
       <div
         className="table-container flex flex-col h-full w-full min-w-0 overflow-hidden"
@@ -186,12 +221,34 @@ const CompanyTable = ({
             rowCount={total}
             pagination
             checkboxSelection
+            disableRowSelectionOnClick={selectAllToggle}
             onRowSelectionModelChange={(newSelection) => {
-              const ids = (newSelection as (number | string)[]).map(Number);
-              console.log("New selection:", ids);
-              setSelectedCompanyIds(ids);
+              // Don't allow selection changes when toggle is enabled
+              if (selectAllToggle) return;
+
+              const newIds = (newSelection as (number | string)[]).map(Number);
+              const currentPageIds = response.map((company) => company.id);
+
+              // Remove current page IDs from existing selection
+              const selectionWithoutCurrentPage = selectedCompanyIds.filter(
+                (id) => !currentPageIds.includes(id)
+              );
+
+              // Add new selection from current page
+              const updatedSelection = [
+                ...selectionWithoutCurrentPage,
+                ...newIds,
+              ];
+
+              setSelectedCompanyIds(updatedSelection);
             }}
-            rowSelectionModel={selectedCompanyIds}
+            rowSelectionModel={
+              selectAllToggle
+                ? []
+                : selectedCompanyIds.filter((id) =>
+                    response.some((company) => company.id === id)
+                  )
+            }
             paginationMode="server"
             onPaginationModelChange={(newMeta) => {
               onPageSizeChange(newMeta.pageSize);
@@ -274,6 +331,13 @@ const CompanyTable = ({
               "& .MuiDataGrid-columnSeparator": {
                 display: "none !important",
               },
+              // Disable checkboxes when toggle is enabled
+              ...(selectAllToggle && {
+                "& .MuiDataGrid-checkboxInput": {
+                  opacity: 0.5,
+                  pointerEvents: "none",
+                },
+              }),
             }}
             hideFooter={true}
             hideFooterPagination={true}

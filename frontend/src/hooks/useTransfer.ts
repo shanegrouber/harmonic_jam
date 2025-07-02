@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Collection } from "../types";
-import { createTransferJob } from "../utils/transfer-api";
+import {
+  createTransferJob,
+  createTransferJobForCollection,
+} from "../utils/transfer-api";
 
 export const useTransfer = (
   showToast: (message: string, severity: "success" | "error" | "info") => void,
@@ -13,16 +16,29 @@ export const useTransfer = (
 
   const initiateTransfer = async (
     companyIds: number[],
-    targetCollection: Collection
+    targetCollection: Collection,
+    sourceCollectionId: string,
+    isSelectAllToggle?: boolean
   ) => {
     setIsTransferring(true);
     setLastTransferTarget(targetCollection);
 
     try {
-      const transferJob = await createTransferJob({
-        company_ids: companyIds,
-        collection_id: targetCollection.id,
-      });
+      let transferJob;
+
+      if (isSelectAllToggle) {
+        // Use collection-based transfer when toggle is enabled
+        transferJob = await createTransferJobForCollection({
+          source_collection_id: sourceCollectionId,
+          collection_id: targetCollection.id,
+        });
+      } else {
+        // Use regular transfer with selected company IDs
+        transferJob = await createTransferJob({
+          company_ids: companyIds,
+          collection_id: targetCollection.id,
+        });
+      }
 
       setCurrentJobId(transferJob.job_id);
     } catch (error) {

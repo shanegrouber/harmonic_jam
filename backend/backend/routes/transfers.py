@@ -21,6 +21,11 @@ class TransferJobCreate(BaseModel):
     collection_id: uuid.UUID
 
 
+class TransferJobCreateForCollection(BaseModel):
+    source_collection_id: uuid.UUID
+    collection_id: uuid.UUID
+
+
 class RemoveCompaniesRequest(BaseModel):
     company_ids: list[int]
     collection_id: uuid.UUID
@@ -75,6 +80,52 @@ def create_transfer_job(
         db.add(transfer_item)
         transfer_items.append(transfer_item)
 
+    db.commit()
+
+    try:
+        batch_size = 100
+        celery_task = process_transfer_job.delay(str(job_id), batch_size)
+    except Exception:
+        raise
+
+    return get_transfer_job_status(job_id, db, celery_task.id)
+
+
+@router.post("/jobs/collection", response_model=TransferJobResponse)
+def create_transfer_job_for_collection(
+    transfer_request: TransferJobCreateForCollection,
+    db: Session = Depends(database.get_db),
+):
+    """Create a new transfer job for all companies in a collection"""
+    job_id = uuid.uuid4()
+
+    # Get all company IDs from the source collection
+    if not transfer_request.source_collection_id:
+        raise HTTPException(status_code=400, detail="Source collection ID is required")
+
+    # Get companies from specific collection
+    company_associations = (
+        db.query(database.CompanyCollectionAssociation.company_id)
+        .filter(
+            database.CompanyCollectionAssociation.collection_id
+            == transfer_request.source_collection_id
+        )
+        .all()
+    )
+    company_ids = [assoc.company_id for assoc in company_associations]
+
+    transfer_items = [
+        database.TransferJobItem(
+            job_id=job_id,
+            company_id=company_id,
+            source_collection_id=transfer_request.source_collection_id,
+            collection_id=transfer_request.collection_id,
+            status="pending",
+        )
+        for company_id in company_ids
+    ]
+
+    db.bulk_save_objects(transfer_items)
     db.commit()
 
     try:

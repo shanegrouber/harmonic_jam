@@ -25,7 +25,9 @@ export interface CompanyTableToolbarComponentProps {
   currentCollectionId: string;
   initiateTransfer: (
     companyIds: number[],
-    targetCollection: Collection
+    targetCollection: Collection,
+    sourceCollectionId: string,
+    isSelectAllToggle?: boolean
   ) => void;
   onSelectAll: () => Promise<void>;
   onDeselectAll: () => void;
@@ -35,4 +37,6 @@ export interface CompanyTableToolbarComponentProps {
   loadTime?: number | null;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onToggleStateChange?: (enabled: boolean) => void;
+  selectAllToggle: boolean;
 }

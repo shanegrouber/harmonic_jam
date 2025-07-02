@@ -1,4 +1,12 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+
   postgres-jam-db:
     image: postgres:15.0
     environment:
@@ -38,10 +46,11 @@ services:
       ]
     depends_on:
       - postgres-jam-db
+      - redis
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
-      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
-      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+      CELERY_BROKER_URL: redis://host.docker.internal:6380/0
+      CELERY_RESULT_BACKEND: redis://host.docker.internal:6380/0
 
   celery-worker:
     build: .
@@ -54,14 +63,24 @@ services:
         "backend.celery_app",
         "worker",
         "--loglevel=info",
-        "--concurrency=4",
+        "--concurrency=12",
+        "--prefetch-multiplier=1",
+        "--max-tasks-per-child=1000",
       ]
     depends_on:
       - postgres-jam-db
+      - redis
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
-      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
-      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   celery-beat:
     build: .
@@ -70,25 +89,28 @@ services:
     command: ["celery", "-A", "backend.celery_app", "beat", "--loglevel=info"]
     depends_on:
       - postgres-jam-db
+      - redis
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
-      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
-      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
 
   flower:
     build: .
     working_dir: /app
     volumes:
       - .:/app
-    command: celery --app=backend.celery_app flower --broker=redis://host.docker.internal:6379/0
+    command: celery --app=backend.celery_app flower --broker=redis://host.docker.internal:6380/0
     ports:
       - 5555:5555
     depends_on:
       - celery-worker
+      - redis
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres-jam-db:5432/harmonicjam
-      CELERY_BROKER_URL: redis://host.docker.internal:6379/0
-      CELERY_RESULT_BACKEND: redis://host.docker.internal:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
 
 volumes:
   postgres_data:
+  redis_data:

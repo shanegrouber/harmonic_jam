@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { Box, Typography, Divider } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Divider,
+  Switch,
+  FormControlLabel,
+} from "@mui/material";
 import { CompanyTableToolbarComponentProps } from "../types";
 import ModernButton from "./ui/ModernButton";
 import SearchBar from "./ui/SearchBar";
@@ -26,13 +32,11 @@ function formatLoadTime(loadTime: number): string {
 }
 
 const CompanyTableToolbar = ({
-  isTransferring,
   selectedCount,
   selectedCompanyIds,
   collections,
   currentCollectionId,
   initiateTransfer,
-  onSelectAll,
   onDeselectAll,
   onClearSelection,
   onRefresh,
@@ -40,23 +44,17 @@ const CompanyTableToolbar = ({
   loadTime,
   searchQuery,
   onSearchChange,
+  onToggleStateChange,
+  selectAllToggle,
 }: CompanyTableToolbarComponentProps) => {
-  console.log(
-    "selectedCompanyIds:",
-    selectedCompanyIds,
-    "selectedCount:",
-    selectedCount
-  );
-  console.log("isTransferring:", isTransferring);
   const [manageCollectionsAnchorEl, setManageCollectionsAnchorEl] =
     useState<null | HTMLElement>(null);
-  const [isSelectingAll, setIsSelectingAll] = useState(false);
   const manageCollectionsOpen = Boolean(manageCollectionsAnchorEl);
 
   const handleManageCollectionsOpen = (
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
-    if (selectedCompanyIds.length > 0) {
+    if (selectedCompanyIds.length > 0 || selectAllToggle) {
       setManageCollectionsAnchorEl(event.currentTarget);
     }
   };
@@ -78,7 +76,12 @@ const CompanyTableToolbar = ({
           (c) => c.id === update.collectionId
         );
         if (targetCollection) {
-          await initiateTransfer(selectedCompanyIds, targetCollection);
+          await initiateTransfer(
+            selectedCompanyIds,
+            targetCollection,
+            isAllCompaniesView ? "all-companies" : currentCollectionId,
+            selectAllToggle
+          );
         }
       } else if (update.action === "remove" && !isAllCompaniesView) {
         // Only allow remove operations when not in "All Companies" view
@@ -98,14 +101,18 @@ const CompanyTableToolbar = ({
     }
   };
 
-  const handleSelectAll = async () => {
-    setIsSelectingAll(true);
-    try {
-      await onSelectAll();
-    } catch (error) {
-      console.error("Failed to select all:", error);
-    } finally {
-      setIsSelectingAll(false);
+  const handleSelectAllToggle = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const enabled = event.target.checked;
+    onToggleStateChange?.(enabled);
+    if (!enabled) {
+      // Clear selection when toggle is disabled
+      onClearSelection();
+    }
+    // Notify parent of toggle state change
+    if (onToggleStateChange) {
+      onToggleStateChange(enabled);
     }
   };
 
@@ -137,14 +144,14 @@ const CompanyTableToolbar = ({
 
       {/* Right side - Selection controls and other elements */}
       <Box display="flex" alignItems="center" gap={2}>
-        {selectedCount > 0 && (
+        {(selectedCount > 0 || selectAllToggle) && (
           <Box display="flex" alignItems="center" gap={3}>
             <Typography
               variant="body2"
               sx={{
                 fontWeight: 600,
-                backgroundColor: "#f3f4f6",
-                color: "#374151",
+                backgroundColor: selectAllToggle ? "#10b981" : "#f3f4f6",
+                color: selectAllToggle ? "#ffffff" : "#374151",
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
@@ -154,56 +161,77 @@ const CompanyTableToolbar = ({
                 pointerEvents: "none",
               }}
             >
-              {selectedCount} selected
+              {selectAllToggle
+                ? `${total} selected`
+                : `${selectedCount} selected`}
             </Typography>
 
-            <Typography
-              variant="body2"
-              color="primary"
-              sx={{
-                cursor: "pointer",
-                fontWeight: 500,
-                transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                  color: "primary.dark",
-                  transform: "translateY(-1px)",
-                  textShadow: "0 1px 2px rgba(0,0,0,0.1)",
-                },
-              }}
-              onClick={onDeselectAll}
-            >
-              Deselect all
-            </Typography>
+            {!selectAllToggle && (
+              <Typography
+                variant="body2"
+                color="primary"
+                sx={{
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    color: "primary.dark",
+                    transform: "translateY(-1px)",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                  },
+                }}
+                onClick={onDeselectAll}
+              >
+                Deselect all
+              </Typography>
+            )}
             <Divider orientation="vertical" flexItem />
           </Box>
         )}
 
         <Box display="flex" alignItems="center" gap={3}>
-          <ModernButton
-            onClick={handleSelectAll}
-            disabled={isSelectingAll}
-            sx={{
-              mb: 0,
-              borderRadius: 2,
-              minWidth: 80,
-              height: 32,
-              fontSize: "0.875rem",
-              backgroundColor: "#10b981",
-              color: "#ffffff",
-              "&:hover": {
-                backgroundColor: "#059669",
-              },
-            }}
-          >
-            {isSelectingAll ? "Selecting..." : "Select all"}
-          </ModernButton>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={selectAllToggle}
+                onChange={handleSelectAllToggle}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#10b981",
+                    "&:hover": {
+                      backgroundColor: "rgba(16, 185, 129, 0.08)",
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#10b981",
+                  },
+                }}
+              />
+            }
+            label={
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  color: selectAllToggle ? "#10b981" : "#374151",
+                }}
+              >
+                Select all
+              </Typography>
+            }
+            sx={{ margin: 0 }}
+          />
 
           <ModernButton
             endIcon={<KeyboardArrowDownIcon />}
             onClick={handleManageCollectionsOpen}
             sx={{
               mb: 0,
-              color: selectedCompanyIds.length === 0 ? "#888" : "#ffffff",
+              color:
+                selectedCompanyIds.length === 0 && !selectAllToggle
+                  ? "#888"
+                  : "#ffffff",
               borderRadius: 2,
               minWidth: 140,
               "&:hover": {
@@ -220,7 +248,7 @@ const CompanyTableToolbar = ({
                 boxShadow: "none",
               },
             }}
-            disabled={selectedCompanyIds.length === 0}
+            disabled={selectedCompanyIds.length === 0 && !selectAllToggle}
           >
             Manage collections
           </ModernButton>

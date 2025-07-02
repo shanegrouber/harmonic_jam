@@ -6,6 +6,11 @@ export interface TransferJobCreate {
   collection_id: string;
 }
 
+export interface TransferJobCreateForCollection {
+  source_collection_id: string;
+  collection_id: string;
+}
+
 export interface RemoveCompaniesRequest {
   company_ids: number[];
   collection_id: string;
@@ -62,6 +67,26 @@ export const createTransferJob = async (
 
   if (!response.ok) {
     throw new Error(`Failed to create transfer job: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+export const createTransferJobForCollection = async (
+  transferRequest: TransferJobCreateForCollection
+): Promise<TransferJobResponse> => {
+  const response = await fetch(`${API_BASE_URL}/transfers/jobs/collection`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(transferRequest),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to create transfer job for collection: ${response.statusText}`
+    );
   }
 
   return response.json();
